@@ -39,7 +39,9 @@ builder.Services.AddWebAppServices();
 builder.Services.AddPosduifDispatch();
 builder.Services.AddWebAppAuthentication(skaaphondOptions);
 
-builder.Services.AddControllers();
+// Keep the Async suffix in action names so nameof(...) in CreatedAtAction resolves;
+// without this the framework trims it and the generated Location route fails to match.
+builder.Services.AddControllers(options => options.SuppressAsyncSuffixInActionNames = false);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database");
