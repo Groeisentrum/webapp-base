@@ -1,0 +1,71 @@
+# Deployment stack for an EC2 instance. Pulls images from ECR rather than building.
+#
+# Place this file, an .env, and docker/nginx/ssl/ at /opt/webapp-base on the instance.
+# CD sets IMAGE_TAG and runs `docker compose -f docker-compose.deploy.yml up -d`.
+
+services:
+  mariadb:
+    image: mariadb:11
+    container_name: webapp-base-db
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?set DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${DB_NAME:-webapp_base}
+    volumes:
+      # Named volume so an instance-level snapshot captures the data directory.
+      - mariadb-data:/var/lib/mysql
+    # No host port: the database is reachable only from the compose network.
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  api:
+    image: ${ECR_REGISTRY}/webapp-base-api:${IMAGE_TAG:-prod}
+    container_name: webapp-base-api
+    restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # True in production: configuration and secrets come from SSM Parameter Store
+      # under /GroeiSentrum/WebappBase/, not from this file.
+      Configuration__UseParameterStore: "true"
+      Configuration__ParameterStorePath: ${PARAMETER_STORE_PATH:-/GroeiSentrum/WebappBase/}
+      Database__ConnectionString: "server=mariadb;port=3306;database=${DB_NAME:-webapp_base};user=root;password=${DB_ROOT_PASSWORD}"
+      Database__MigrateOnStartup: "true"
+    expose:
+      - "5000"
+
+  webhost:
+    image: ${ECR_REGISTRY}/webapp-base-web:${IMAGE_TAG:-prod}
+    container_name: webapp-base-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NODE_ENV: production
+      LOCAL_API_URL: http://api:5000
+      SKAAPHOND_API_URL: ${SKAAPHOND_API_URL:-https://skaaphond.konnek360.co.za}
+      WOLKPOORT_API_URL: ${WOLKPOORT_API_URL:-https://wolkpoort.konnek360.co.za}
+    expose:
+      - "3000"
+
+  nginx:
+    image: ${ECR_REGISTRY}/webapp-base-nginx:${IMAGE_TAG:-prod}
+    container_name: webapp-base-nginx
+    restart: unless-stopped
+    depends_on:
+      - webhost
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+
+volumes:
+  mariadb-data:

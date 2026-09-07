@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, dev, "feature/**", "bugfix/**", "hotfix/**"]
+  workflow_dispatch:
+
+# A new push to the same branch makes an in-flight run redundant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API — build and test
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        working-directory: apps/api
+        run: dotnet restore
+
+      - name: Build
+        working-directory: apps/api
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Unit tests
+        working-directory: apps/api
+        run: dotnet test tests/WebAppBase.Tests.Unit --no-build --configuration Release --logger "trx;LogFileName=unit.trx"
+
+      # Integration tests run the real request pipeline against an in-memory store,
+      # so no database service is needed here.
+      - name: Integration tests
+        working-directory: apps/api
+        run: dotnet test tests/WebAppBase.Tests.Integration --no-build --configuration Release --logger "trx;LogFileName=integration.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-test-results
+          path: apps/api/**/TestResults/*.trx
+          if-no-files-found: ignore
+
+  web:
+    name: Webhost — lint, test and build
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/nextjs/package-lock.json
+
+      - name: Install
+        working-directory: apps/nextjs
+        run: npm ci
+
+      - name: Lint
+        working-directory: apps/nextjs
+        run: npm run lint
+
+      - name: Type check
+        working-directory: apps/nextjs
+        run: npx tsc --noEmit
+
+      - name: Test
+        working-directory: apps/nextjs
+        run: npm run test
+
+      - name: Build
+        working-directory: apps/nextjs
+        run: npm run build

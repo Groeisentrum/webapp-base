@@ -1,0 +1,87 @@
+# Local development stack: nginx -> webhost -> api -> mariadb.
+#
+# Only nginx publishes ports to the host. The webhost and API stay on the internal
+# network so the authenticated API cannot be reached except through the proxy.
+
+services:
+  mariadb:
+    image: mariadb:11
+    container_name: webapp-base-db
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MARIADB_DATABASE: ${DB_NAME:-webapp_base}
+    ports:
+      # 3310 on the host: 3306 collides with a local MySQL, 3307 with the Aspire
+      # host and the lenings/kraal test databases, and 3309 with drukpers.
+      - "3310:3306"
+    volumes:
+      - mariadb-data:/var/lib/mysql
+      # Init scripts run only against an empty volume. To reseed, drop the volume:
+      #   docker compose down -v
+      - ./scripts/db-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: webapp-base-api
+    restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      # Double underscore is the .NET convention for nested configuration keys.
+      Configuration__UseParameterStore: "${USE_PARAMETER_STORE:-false}"
+      Database__ConnectionString: "server=mariadb;port=3306;database=${DB_NAME:-webapp_base};user=root;password=${DB_ROOT_PASSWORD:-rootpassword}"
+      Database__MigrateOnStartup: "true"
+      Skaaphond__BaseUrl: ${SKAAPHOND_API_URL:-https://skaaphond.konnek360.co.za}
+      Skaaphond__SigningKey: ${SKAAPHOND_SIGNING_KEY:?set SKAAPHOND_SIGNING_KEY in .env}
+      Skaaphond__AllowUnverifiedTokens: "${SKAAPHOND_ALLOW_UNVERIFIED:-true}"
+      Posduif__BaseUrl: ${POSDUIF_URL:-https://posduif.konnek360.co.za}
+      Posduif__ApiKey: ${POSDUIF_API_KEY:-}
+      Posduif__Enabled: "${POSDUIF_ENABLED:-false}"
+    expose:
+      - "5000"
+
+  webhost:
+    build:
+      context: ./apps/nextjs
+      dockerfile: Dockerfile
+    container_name: webapp-base-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NODE_ENV: production
+      LOCAL_API_URL: http://api:5000
+      SKAAPHOND_API_URL: ${SKAAPHOND_API_URL:-https://skaaphond.konnek360.co.za}
+      WOLKPOORT_API_URL: ${WOLKPOORT_API_URL:-https://wolkpoort.konnek360.co.za}
+    expose:
+      - "3000"
+
+  nginx:
+    build:
+      context: ./docker/nginx
+      dockerfile: Dockerfile
+    container_name: webapp-base-nginx
+    restart: unless-stopped
+    depends_on:
+      - webhost
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Certificates are mounted, never baked into the image.
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+
+volumes:
+  mariadb-data:

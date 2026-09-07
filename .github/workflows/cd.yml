@@ -1,0 +1,155 @@
+name: CD
+
+on:
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    name: Build, push and deploy
+    runs-on: ubuntu-24.04-arm
+    # Environment gates the deploy: configure required reviewers on `production`
+    # in repository settings so a push to main cannot ship unattended.
+    environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve target environment
+        id: target
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "suffix=prod" >> "$GITHUB_OUTPUT"
+          else
+            echo "suffix=dev" >> "$GITHUB_OUTPUT"
+          fi
+          echo "tag=${{ github.ref_name }}-$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      # OIDC rather than long-lived keys: no AWS secret is stored in the repository.
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: af-south-1
+
+      - name: Log in to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Runners are arm64, so these build natively for the t4g targets — no QEMU.
+      - name: Build and push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./apps/api
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/webapp-base-api:${{ steps.target.outputs.suffix }}
+            ${{ steps.ecr.outputs.registry }}/webapp-base-api:${{ steps.target.outputs.tag }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+
+      - name: Build and push webhost image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./apps/nextjs
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/webapp-base-web:${{ steps.target.outputs.suffix }}
+            ${{ steps.ecr.outputs.registry }}/webapp-base-web:${{ steps.target.outputs.tag }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+
+      - name: Build and push nginx image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./docker/nginx
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/webapp-base-nginx:${{ steps.target.outputs.suffix }}
+            ${{ steps.ecr.outputs.registry }}/webapp-base-nginx:${{ steps.target.outputs.tag }}
+          cache-from: type=gha,scope=nginx
+          cache-to: type=gha,scope=nginx,mode=max
+
+      # SSM rather than SSH: no inbound port and no key material to manage.
+      - name: Deploy to EC2
+        env:
+          INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          TAG: ${{ steps.target.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy webapp-base $TAG" \
+            --parameters "commands=[
+              'set -euo pipefail',
+              'cd /opt/webapp-base',
+              'aws ecr get-login-password --region af-south-1 | docker login --username AWS --password-stdin $REGISTRY',
+              'export IMAGE_TAG=$TAG',
+              'docker compose -f docker-compose.deploy.yml pull',
+              'docker compose -f docker-compose.deploy.yml up -d --remove-orphans',
+              'docker image prune -f'
+            ]" \
+            --query "Command.CommandId" --output text)
+
+          echo "SSM command: $COMMAND_ID"
+          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" || true
+
+          STATUS=$(aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" \
+            --query "Status" --output text)
+
+          aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" \
+            --query "StandardOutputContent" --output text
+
+          if [ "$STATUS" != "Success" ]; then
+            echo "Deployment failed with status: $STATUS" >&2
+            aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" \
+              --query "StandardErrorContent" --output text >&2
+            exit 1
+          fi
+
+      - name: Verify health
+        env:
+          INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+        run: |
+          set -euo pipefail
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Health check webapp-base" \
+            --parameters "commands=[
+              'for i in \$(seq 1 18); do if curl -fsS http://127.0.0.1/nginx-health >/dev/null; then echo healthy; exit 0; fi; sleep 5; done; echo unhealthy; exit 1'
+            ]" \
+            --query "Command.CommandId" --output text)
+
+          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" || true
+
+          STATUS=$(aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" \
+            --query "Status" --output text)
+
+          if [ "$STATUS" != "Success" ]; then
+            echo "Health check failed after deployment" >&2
+            exit 1
+          fi

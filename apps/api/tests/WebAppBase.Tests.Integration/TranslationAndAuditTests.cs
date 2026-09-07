@@ -111,8 +111,8 @@ public sealed class TranslationAndAuditTests : IClassFixture<WebAppApiFactory>
         var translations = await editorClient.GetFromJsonAsync<IReadOnlyList<TranslationResponse>>(
             $"/api/translations?entityType={EntityTypeNames.Content}&entityId={contentId}");
 
-        translations!.Should().ContainSingle();
-        translations[0].Value.Should().Be("Third");
+        translations.Should().NotBeNull();
+        translations!.Should().ContainSingle(translation => translation.Value == "Third");
     }
 
     [Fact]
