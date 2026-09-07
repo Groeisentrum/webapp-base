@@ -1,0 +1,28 @@
+# Build output
+bin/
+obj/
+out/
+dist/
+.next/
+node_modules/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# SSL material
+docker/nginx/ssl/*.key
+docker/nginx/ssl/*.crt
+docker/nginx/ssl/*.pem
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+
+# OS
+Thumbs.db
+.DS_Store

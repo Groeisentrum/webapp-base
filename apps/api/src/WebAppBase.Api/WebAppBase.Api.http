@@ -1,0 +1,6 @@
+@WebAppBase.Api_HostAddress = http://localhost:5092
+
+GET {{WebAppBase.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

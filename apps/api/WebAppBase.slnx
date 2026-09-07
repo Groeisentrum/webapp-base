@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/WebAppBase.Api/WebAppBase.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WebAppBase.Tests.Integration/WebAppBase.Tests.Integration.csproj" />
+    <Project Path="tests/WebAppBase.Tests.Unit/WebAppBase.Tests.Unit.csproj" />
+  </Folder>
+</Solution>
