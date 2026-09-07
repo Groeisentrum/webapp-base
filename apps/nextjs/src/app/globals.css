@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+/*
+ * Semantic tokens. Components reference these rather than raw colours, so a client
+ * deployment can be rebranded by overriding this block alone.
+ *
+ * TenantSettings.branding can override the brand tokens at runtime; see
+ * BrandingStyle in the public layout.
+ */
+:root {
+  --brand-primary: #1f5f4b;
+  --brand-secondary: #2d7a63;
+  --brand-accent: #c8862a;
+
+  --page-bg: #f6f7f5;
+  --panel-bg: #ffffff;
+  --panel-border: #dfe3dd;
+
+  --text-primary: #1a1f1c;
+  --text-secondary: #5a635d;
+  --text-inverse: #ffffff;
+
+  --state-danger: #a3271f;
+  --state-danger-bg: #fbeceb;
+  --state-success: #1f6b3f;
+  --state-success-bg: #eaf5ee;
+  --state-warning: #8a6116;
+  --state-warning-bg: #fcf3e2;
+
+  --focus-ring: #2d7a63;
+}
+
+@theme inline {
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-accent: var(--brand-accent);
+  --color-page: var(--page-bg);
+  --color-panel: var(--panel-bg);
+  --color-panel-border: var(--panel-border);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+}
+
+body {
+  background: var(--page-bg);
+  color: var(--text-primary);
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
