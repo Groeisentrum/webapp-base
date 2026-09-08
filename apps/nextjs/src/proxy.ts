@@ -12,7 +12,7 @@ import { AUTH_COOKIE_NAMES } from "@/app/api/utils/authCookies";
 const ADMIN_PATH_PREFIX = "/admin";
 const LOGIN_PATH = "/aanmeld";
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (!pathname.startsWith(ADMIN_PATH_PREFIX)) {

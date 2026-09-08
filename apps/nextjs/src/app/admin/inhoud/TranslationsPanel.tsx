@@ -90,7 +90,7 @@ export function TranslationsPanel({ content }: { content: Content }) {
     <div className="flex flex-col gap-4">
       {feedback && <Alert tone={feedback.tone}>{feedback.message}</Alert>}
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Taal" htmlFor="languageCode">
           <Select
             id="languageCode"

@@ -100,7 +100,7 @@ export default function CategoriesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-(--text-primary)">Kategorieë</h1>
         <Button onClick={openCreate}>Nuwe kategorie</Button>
       </div>
@@ -179,7 +179,7 @@ export default function CategoriesPage() {
             </Select>
           </Field>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Field label="Kleur" htmlFor="colour">
               <Input
                 id="colour"
@@ -233,14 +233,16 @@ function CategoryRow({
   return (
     <li>
       <div
-        className="flex items-center justify-between rounded-md px-3 py-2 hover:bg-(--page-bg)"
-        style={{ paddingLeft: `${depth * 1.5 + 0.75}rem` }}
+        className="flex items-center justify-between gap-2 rounded-md px-3 py-1 hover:bg-(--page-bg)"
+        // Indentation is capped so a deep tree cannot squeeze the actions off-screen
+        // on a narrower tablet viewport.
+        style={{ paddingLeft: `${Math.min(depth, 4) * 1.25 + 0.75}rem` }}
       >
-        <span className="text-sm text-(--text-primary)">
+        <span className="min-w-0 truncate text-sm text-(--text-primary)">
           {node.name}
           <span className="ml-2 text-xs text-(--text-secondary)">/{node.slug}</span>
         </span>
-        <span className="flex gap-2">
+        <span className="flex shrink-0 gap-1">
           <Button variant="ghost" onClick={() => onEdit(node)}>
             Wysig
           </Button>

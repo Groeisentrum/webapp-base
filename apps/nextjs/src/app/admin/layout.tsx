@@ -62,11 +62,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     router.push("/aanmeld");
   };
 
+  const userChip = (
+    <div className="flex items-center gap-3">
+      <span className="max-w-[16rem] truncate text-sm text-(--text-secondary)">{user?.email}</span>
+      <Button variant="secondary" onClick={handleSignOut}>
+        Teken uit
+      </Button>
+    </div>
+  );
+
   return (
-    <div className="flex min-h-screen">
-      <aside className="w-64 shrink-0 border-r border-(--panel-border) bg-(--panel-bg) p-4">
-        <p className="px-2 pb-4 text-sm font-semibold text-(--text-primary)">Administrasie</p>
-        <nav className="flex flex-col gap-1">
+    <div className="min-h-screen lg:flex">
+      {/* Below lg this is a stacked top bar; from lg it becomes the left sidebar.
+          lg (1024px) is iPad landscape — portrait tablets get the horizontal nav. */}
+      <aside className="border-b border-(--panel-border) bg-(--panel-bg) lg:w-64 lg:shrink-0 lg:border-r lg:border-b-0">
+        <div className="flex items-center justify-between gap-3 px-4 py-3 lg:py-4">
+          <p className="text-sm font-semibold text-(--text-primary)">Administrasie</p>
+          <div className="lg:hidden">{userChip}</div>
+        </div>
+
+        <nav className="flex gap-1 overflow-x-auto px-3 pb-2 lg:flex-col lg:overflow-x-visible lg:pb-4">
           {visibleNavItems.map((item) => {
             const isActive = pathname === item.href;
 
@@ -75,10 +90,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 key={item.href}
                 href={item.href}
                 aria-current={isActive ? "page" : undefined}
+                // shrink-0 so the horizontal strip scrolls instead of squashing labels.
                 className={
-                  isActive
-                    ? "rounded-md bg-(--brand-primary) px-3 py-2 text-sm text-(--text-inverse)"
-                    : "rounded-md px-3 py-2 text-sm text-(--text-secondary) hover:bg-(--page-bg)"
+                  "inline-flex min-h-11 shrink-0 items-center rounded-md px-3 text-sm whitespace-nowrap " +
+                  (isActive
+                    ? "bg-(--brand-primary) text-(--text-inverse)"
+                    : "text-(--text-secondary) hover:bg-(--page-bg)")
                 }
               >
                 {item.label}
@@ -89,13 +106,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-(--panel-border) bg-(--panel-bg) px-6 py-3">
-          <span className="text-sm text-(--text-secondary)">{user?.email}</span>
-          <Button variant="secondary" onClick={handleSignOut}>
-            Teken uit
-          </Button>
+        <header className="hidden items-center justify-end border-b border-(--panel-border) bg-(--panel-bg) px-6 py-3 lg:flex">
+          {userChip}
         </header>
-        <main className="flex-1 overflow-x-auto p-6">{children}</main>
+        <main className="min-w-0 flex-1 p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );

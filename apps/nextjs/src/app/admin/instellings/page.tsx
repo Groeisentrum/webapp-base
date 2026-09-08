@@ -179,7 +179,7 @@ function TenantSettingsForm({
       </Panel>
 
       <Panel title="Handelsmerk">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Primêre kleur" htmlFor="primaryColour">
             <Input
               id="primaryColour"
@@ -224,7 +224,7 @@ function TenantSettingsForm({
       </Panel>
 
       <Panel title="Kontakbesonderhede">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="E-pos" htmlFor="emailAddress">
             <Input
               id="emailAddress"

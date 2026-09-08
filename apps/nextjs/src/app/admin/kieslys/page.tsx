@@ -110,7 +110,7 @@ export default function MenuItemsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-(--text-primary)">Kieslys</h1>
         <Button onClick={openCreate}>Nuwe kieslysitem</Button>
       </div>
@@ -121,7 +121,9 @@ export default function MenuItemsPage() {
         {menuItems.length === 0 ? (
           <EmptyState message="Nog geen kieslysitems nie." />
         ) : (
-          <table className="w-full text-left text-sm">
+          // Scrolls within the panel rather than widening the page on a tablet.
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[46rem] text-left text-sm">
             <thead className="border-b border-(--panel-border) text-(--text-secondary)">
               <tr>
                 <th className="py-2 pr-4 font-medium">Etiket</th>
@@ -156,6 +158,7 @@ export default function MenuItemsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Panel>
 
@@ -183,7 +186,7 @@ export default function MenuItemsPage() {
             />
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Kieslys" htmlFor="menuType">
               <Select
                 id="menuType"

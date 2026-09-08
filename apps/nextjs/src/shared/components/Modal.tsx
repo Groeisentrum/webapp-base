@@ -40,21 +40,21 @@ export function Modal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-2 sm:p-4">
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-(--panel-border) bg-(--panel-bg) p-6"
+        className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-(--panel-border) bg-(--panel-bg) p-4 sm:p-6"
       >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-(--text-primary)">{title}</h2>
-          <Button variant="ghost" onClick={onClose} aria-label="Maak toe">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <h2 className="text-base font-semibold text-(--text-primary) sm:text-lg">{title}</h2>
+          <Button variant="ghost" onClick={onClose} aria-label="Maak toe" className="shrink-0">
             &times;
           </Button>
         </div>
         {children}
-        {footer && <div className="mt-6 flex justify-end gap-2">{footer}</div>}
+        {footer && <div className="mt-6 flex flex-wrap justify-end gap-2">{footer}</div>}
       </div>
     </div>
   );

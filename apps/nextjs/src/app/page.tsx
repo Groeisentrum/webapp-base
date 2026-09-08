@@ -31,12 +31,14 @@ export default async function HomePage({
 
   return (
     <PublicShell siteConfig={siteConfig} language={language}>
-      <section className="mb-10">
-        <h1 className="text-2xl font-semibold text-(--text-primary)">{siteConfig.siteName}</h1>
+      <section className="mb-8 sm:mb-10">
+        <h1 className="text-2xl font-semibold text-balance text-(--text-primary) sm:text-3xl">
+          {siteConfig.siteName}
+        </h1>
       </section>
 
       {categories.length > 0 && (
-        <section className="mb-10">
+        <section className="mb-8 sm:mb-10">
           <h2 className="mb-3 text-lg font-semibold text-(--text-primary)">Afdelings</h2>
           <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {categories.map((category) => (

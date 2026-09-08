@@ -150,7 +150,7 @@ export default function ContentPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-(--text-primary)">Inhoud</h1>
         <Button onClick={openCreate} disabled={categories.length === 0}>
           Nuwe inhoud
@@ -166,7 +166,9 @@ export default function ContentPage() {
         {items.length === 0 ? (
           <EmptyState message="Nog geen inhoud nie." />
         ) : (
-          <table className="w-full text-left text-sm">
+          // Scrolls within the panel rather than widening the page on a tablet.
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[44rem] text-left text-sm">
             <thead className="border-b border-(--panel-border) text-(--text-secondary)">
               <tr>
                 <th className="py-2 pr-4 font-medium">Titel</th>
@@ -202,6 +204,7 @@ export default function ContentPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Panel>
 
@@ -262,7 +265,7 @@ export default function ContentPage() {
               />
             </Field>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Mediatipe" htmlFor="assetType">
                 <Select
                   id="assetType"
@@ -298,7 +301,7 @@ export default function ContentPage() {
               Bepaal wanneer die inhoud op die werf sigbaar is. Dit is los van die
               geleentheidsdatums hieronder.
             </p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Publiseer vanaf" htmlFor="publishedAt">
                 <Input
                   id="publishedAt"
@@ -328,7 +331,7 @@ export default function ContentPage() {
               Wanneer die geleentheid self plaasvind. &apos;n Verlede geleentheid bly
               sigbaar solank die publikasievenster oop is.
             </p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Begin" htmlFor="eventStart">
                 <Input
                   id="eventStart"
@@ -351,7 +354,7 @@ export default function ContentPage() {
               </Field>
             </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-4">
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
               <Field label="Herhaling" htmlFor="frequency">
                 <Select
                   id="frequency"

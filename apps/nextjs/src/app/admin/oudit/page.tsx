@@ -65,7 +65,9 @@ export default function AuditLogPage() {
         )}
 
         {entries.length > 0 && (
-          <table className="w-full text-left text-sm">
+          // Scrolls within the panel rather than widening the page on a tablet.
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[40rem] text-left text-sm">
             <thead className="border-b border-(--panel-border) text-(--text-secondary)">
               <tr>
                 <th className="py-2 pr-4 font-medium">Wanneer</th>
@@ -93,6 +95,7 @@ export default function AuditLogPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
 
         {totalPages > 1 && (

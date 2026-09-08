@@ -40,7 +40,9 @@ export default async function CategoryPage({
 
   return (
     <PublicShell siteConfig={siteConfig} language={language}>
-      <h1 className="mb-6 text-2xl font-semibold text-(--text-primary)">{category.name}</h1>
+      <h1 className="mb-5 text-2xl font-semibold text-balance text-(--text-primary) sm:mb-6 sm:text-3xl">
+        {category.name}
+      </h1>
 
       {category.children.length > 0 && (
         <ul className="mb-8 flex flex-wrap gap-2">
@@ -48,7 +50,7 @@ export default async function CategoryPage({
             <li key={child.id}>
               <a
                 href={`/kategorie/${child.slug}?taal=${encodeURIComponent(language)}`}
-                className="rounded-md border border-(--panel-border) px-3 py-1 text-sm text-(--text-secondary) hover:border-(--brand-primary)"
+                className="inline-flex min-h-11 items-center rounded-md border border-(--panel-border) px-4 text-sm text-(--text-secondary) hover:border-(--brand-primary)"
               >
                 {child.name}
               </a>

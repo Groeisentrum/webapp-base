@@ -25,6 +25,10 @@ WolkPoort when it needs another service's data. Do not add it to the function re
 - Never call `fetch` directly in components — use the typed services in
   `src/shared/services/`.
 - Never hardcode colours — use the semantic tokens in `globals.css`.
+- **One responsive codebase, no device split.** The public site is mobile-first —
+  visitors arrive from an NFC tap or QR code while standing on site. The admin area
+  is tablet-and-up. Device-dependent *capabilities* (AR, NFC, camera) are feature
+  flags plus capability detection, never a second layout or a separate build.
 - The local API returns plain JSON. The double-encoded envelope belongs to WolkPoort
   alone; applying it to `/api/local` corrupts every response.
 - Authorisation is decided in the C# API from the verified token. `X-Actor-*` headers
@@ -39,7 +43,7 @@ docker compose up --build          # full stack on https://localhost
 dotnet test --project apps/api     # 106 tests: unit + integration
 npm --prefix apps/nextjs run lint
 npm --prefix apps/nextjs run build
-npm --prefix apps/nextjs run test
+npm --prefix apps/nextjs run test  # 44 tests
 ```
 
 A task is done only when the API builds warning-free with tests green, and the webhost
@@ -57,10 +61,18 @@ apps/api/src/WebAppBase.Api/
 
 apps/nextjs/src/
   app/api/        auth routes and the three proxies
-  app/admin/      admin dashboard (desktop only)
+  app/admin/      admin dashboard (tablet and up)
   app/(public)/   shared public-site components
   shared/         stores, hooks, services, lib, components
+  proxy.ts        route gating (Next 16 renamed this from middleware.ts)
 ```
+
+Breakpoints: `sm` (640px) splits phone from tablet on the public site; `lg` (1024px,
+iPad landscape) switches the admin sidebar between a horizontal strip and a left
+column. Admin tables scroll inside their panel rather than widening the page.
+
+`next.config.ts` sets `agentRules: false` — otherwise Next writes its own
+`AGENTS.md`/`CLAUDE.md` into `apps/nextjs/`, which would compete with this file.
 
 Code placement follows konnek360's three levels: route-level by default, promote to
 feature-level at two consumers, promote to `shared/` at two features.

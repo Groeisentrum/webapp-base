@@ -41,7 +41,7 @@ export default function AdminOverviewPage() {
             </p>
           )}
           {settingsQuery.data && (
-            <dl className="grid grid-cols-2 gap-4 text-sm">
+            <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm">
               <div>
                 <dt className="text-(--text-secondary)">Werfnaam</dt>
                 <dd className="text-(--text-primary)">{settingsQuery.data.siteName}</dd>
