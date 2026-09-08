@@ -26,4 +26,5 @@ public static class ErrorCodes
     public const string ConsentRequired = "consent_required";
     public const string RegistrationDisabled = "registration_disabled";
     public const string RegistrationFailed = "registration_failed";
+    public const string PasswordTooWeak = "password_too_weak";
 }

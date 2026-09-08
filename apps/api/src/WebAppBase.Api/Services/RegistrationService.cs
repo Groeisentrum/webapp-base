@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using WebAppBase.Api.Configuration;
 using WebAppBase.Api.Data;
+using WebAppBase.Api.Domain;
 using WebAppBase.Api.Domain.Entities;
 using WebAppBase.Api.Domain.Results;
 using WebAppBase.Api.Models.Requests;
@@ -45,6 +46,15 @@ public sealed class RegistrationService(
             return Result<RegistrationResponse>.Failure(Error.Validation(
                 ErrorCodes.ConsentRequired,
                 "Jy moet die privaatheidsbeleid en bepalings aanvaar om te registreer."));
+        }
+
+        // Checked here rather than left to SkaapHond, so the caller is told which rule
+        // they broke instead of receiving a generic upstream rejection.
+        if (!PasswordPolicy.IsSatisfiedBy(request.Password))
+        {
+            return Result<RegistrationResponse>.Failure(Error.Validation(
+                ErrorCodes.PasswordTooWeak,
+                PasswordPolicy.RequirementsMessage));
         }
 
         var settings = await tenantSettingsRepository.GetAsync(cancellationToken);
@@ -98,10 +108,12 @@ public sealed class RegistrationService(
                 creation.FailureReason);
 
             // The upstream reason is logged but never returned: it names the account
-            // and would let a caller probe which usernames exist.
+            // and would let a caller probe which usernames exist. The message stays
+            // neutral about which field was at fault for the same reason — the
+            // knowable problems (consent, password) were already reported above.
             return Result<RegistrationResponse>.Failure(Error.Conflict(
                 ErrorCodes.RegistrationFailed,
-                "Registrasie kon nie voltooi word nie. Probeer asseblief 'n ander gebruikersnaam."));
+                "Registrasie kon nie voltooi word nie. Kontroleer jou besonderhede en probeer weer."));
         }
 
         consentRecord.SkaaphondUserId = creation.UserId;

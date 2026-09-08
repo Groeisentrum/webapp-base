@@ -87,6 +87,25 @@ public sealed class RegistrationServiceTests : IDisposable
             Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
+    [Theory]
+    [InlineData("kort1!A")]
+    [InlineData("geenhoofletter1!")]
+    [InlineData("GEENKLEINLETTER1!")]
+    [InlineData("GeenSyfer!")]
+    [InlineData("GeenSpesiaal1")]
+    public async Task RegisterAsync_WithAWeakPassword_FailsBeforeReachingSkaaphond(string password)
+    {
+        var request = BuildRequest();
+        request.Password = password;
+
+        var result = await registrationService.RegisterAsync(request, null, null, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be(ErrorCodes.PasswordTooWeak);
+        await skaaphondUserClient.DidNotReceive().CreateClientUserAsync(
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task RegisterAsync_WhenSelfRegistrationIsOff_Fails()
     {
@@ -222,7 +241,7 @@ public sealed class RegistrationServiceTests : IDisposable
     {
         UserName = "besoeker",
         Email = "besoeker@voorbeeld.co.za",
-        Password = "n-Baie-Lang-Wagwoord-1",
+        Password = "Wagwoord1!",
         ConsentToPrivacyPolicy = true,
         AcceptTerms = true
     };

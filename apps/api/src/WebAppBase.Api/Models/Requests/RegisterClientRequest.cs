@@ -17,8 +17,12 @@ public sealed class RegisterClientRequest
     [MaxLength(320)]
     public string Email { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Composition is checked in the service against <c>PasswordPolicy</c>, which
+    /// mirrors SkaapHond's rules. The attribute only bounds the length.
+    /// </summary>
     [Required]
-    [MinLength(12)]
+    [MinLength(8)]
     [MaxLength(256)]
     public string Password { get; set; } = string.Empty;
 

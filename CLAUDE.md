@@ -49,10 +49,10 @@ WolkPoort when it needs another service's data. Do not add it to the function re
 
 ```bash
 docker compose up --build          # full stack on https://localhost
-dotnet test --project apps/api     # 140 tests: unit + integration
+dotnet test --project apps/api     # 159 tests: unit + integration
 npm --prefix apps/nextjs run lint
 npm --prefix apps/nextjs run build
-npm --prefix apps/nextjs run test  # 47 tests
+npm --prefix apps/nextjs run test  # 60 tests
 ```
 
 A task is done only when the API builds warning-free with tests green, and the webhost

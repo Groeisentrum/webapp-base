@@ -5,8 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Alert, Button, Field, Input, Panel, Spinner } from "@/shared/components/ui";
 import { getRegistrationAvailability, register } from "@/shared/services/registrationService";
-
-const MINIMUM_PASSWORD_LENGTH = 12;
+import {
+  MINIMUM_PASSWORD_LENGTH,
+  PASSWORD_REQUIREMENTS_MESSAGE,
+  isPasswordAcceptable,
+} from "@/shared/lib/passwordPolicy";
 
 /**
  * Visitor self-registration.
@@ -42,8 +45,8 @@ export default function RegisterPage() {
   }, []);
 
   const validate = (): string | null => {
-    if (password.length < MINIMUM_PASSWORD_LENGTH) {
-      return `Die wagwoord moet ten minste ${MINIMUM_PASSWORD_LENGTH} karakters wees.`;
+    if (!isPasswordAcceptable(password)) {
+      return PASSWORD_REQUIREMENTS_MESSAGE;
     }
 
     if (password !== confirmPassword) {
@@ -142,11 +145,7 @@ export default function RegisterPage() {
             />
           </Field>
 
-          <Field
-            label="Wagwoord"
-            htmlFor="password"
-            hint={`Ten minste ${MINIMUM_PASSWORD_LENGTH} karakters.`}
-          >
+          <Field label="Wagwoord" htmlFor="password" hint={PASSWORD_REQUIREMENTS_MESSAGE}>
             <Input
               id="password"
               type="password"
