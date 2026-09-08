@@ -17,9 +17,11 @@ import { ConfirmDialog, Modal } from "@/shared/components/Modal";
 import {
   AssetType,
   RecurrenceFrequency,
+  Visibility,
   WeekOfMonth,
   type Content,
 } from "@/shared/interfaces/Domain";
+import { VisibilityFields } from "@/shared/components/VisibilityFields";
 import { getSafeUserMessageFromUnknownError } from "@/shared/lib/apiError";
 import { formatDateTime, fromDateTimeLocal, toDateTimeLocal } from "@/shared/lib/dateFields";
 import { getCategories } from "@/shared/services/adminService";
@@ -64,6 +66,8 @@ const emptyForm: ContentInput = {
   eventStart: null,
   eventEnd: null,
   recurrence: null,
+  visibility: Visibility.Public,
+  visibleToRoles: [],
 };
 
 export default function ContentPage() {
@@ -125,6 +129,8 @@ export default function ContentPage() {
       eventStart: content.eventStart,
       eventEnd: content.eventEnd,
       recurrence: content.recurrence,
+      visibility: content.visibility,
+      visibleToRoles: content.visibleToRoles,
     });
     setErrorMessage(null);
     setIsFormOpen(true);
@@ -435,6 +441,13 @@ export default function ContentPage() {
               )}
             </div>
           </fieldset>
+
+          <VisibilityFields
+            idPrefix="content"
+            visibility={form.visibility}
+            visibleToRoles={form.visibleToRoles}
+            onChange={(next) => setForm({ ...form, ...next })}
+          />
         </div>
       </Modal>
 

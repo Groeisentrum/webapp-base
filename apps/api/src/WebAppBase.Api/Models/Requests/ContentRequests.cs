@@ -38,6 +38,12 @@ public sealed class CreateContentRequest
     public DateTimeOffset? EventEnd { get; set; }
 
     public RecurrenceRequest? Recurrence { get; set; }
+
+    /// <summary>Who may see this. Can only narrow what the category already allows.</summary>
+    public Visibility Visibility { get; set; } = Visibility.Public;
+
+    /// <summary>Roles admitted when Visibility is Restricted.</summary>
+    public IReadOnlyList<string> VisibleToRoles { get; set; } = [];
 }
 
 /// <summary>
@@ -71,6 +77,12 @@ public sealed class UpdateContentRequest
     public DateTimeOffset? EventEnd { get; set; }
 
     public RecurrenceRequest? Recurrence { get; set; }
+
+    /// <summary>Who may see this. Can only narrow what the category already allows.</summary>
+    public Visibility Visibility { get; set; } = Visibility.Public;
+
+    /// <summary>Roles admitted when Visibility is Restricted.</summary>
+    public IReadOnlyList<string> VisibleToRoles { get; set; } = [];
 }
 
 /// <summary>

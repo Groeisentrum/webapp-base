@@ -11,4 +11,10 @@ public static class Roles
 
     /// <summary>Manages content within the structure an Admin has configured.</summary>
     public const string Content = "Content";
+
+    /// <summary>
+    /// A registered site visitor. Granted by SkaapHond on self-registration; carries no
+    /// management rights, only access to content gated behind sign-in.
+    /// </summary>
+    public const string Client = "Client";
 }

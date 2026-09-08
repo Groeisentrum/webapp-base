@@ -15,5 +15,7 @@ public sealed record MenuItemResponse(
     string? ExternalUrl,
     long? ParentMenuItemId,
     int SortOrder,
+    Visibility Visibility,
+    IReadOnlyList<string> VisibleToRoles,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt);

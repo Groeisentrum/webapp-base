@@ -22,6 +22,9 @@ const emptyForm: TenantSettingsInput = {
   siteName: "",
   defaultLanguageCode: "af",
   activeLanguageCodes: ["af"],
+  privacyPolicyVersion: "1.0",
+  termsVersion: "1.0",
+  selfRegistrationEnabled: false,
   featureFlags: {},
   branding: {},
   contactInfo: {},
@@ -36,6 +39,9 @@ function toFormValues(settings: TenantSettings | undefined): TenantSettingsInput
     siteName: settings.siteName,
     defaultLanguageCode: settings.defaultLanguageCode,
     activeLanguageCodes: settings.activeLanguageCodes,
+    privacyPolicyVersion: settings.privacyPolicyVersion,
+    termsVersion: settings.termsVersion,
+    selfRegistrationEnabled: settings.selfRegistrationEnabled,
     featureFlags: settings.featureFlags,
     branding: settings.branding,
     contactInfo: settings.contactInfo,
@@ -175,6 +181,59 @@ function TenantSettingsForm({
               {label}
             </label>
           ))}
+        </div>
+      </Panel>
+
+      <Panel
+        title="Registrasie en POPIA"
+        description="Beheer of besoekers self kan registreer, en watter weergawes van die beleide hulle aanvaar."
+      >
+        <div className="flex flex-col gap-4">
+          <label className="flex items-center gap-2 text-sm text-(--text-primary)">
+            <input
+              type="checkbox"
+              checked={form.selfRegistrationEnabled}
+              onChange={(event) =>
+                setForm({ ...form, selfRegistrationEnabled: event.target.checked })
+              }
+            />
+            Laat besoekers toe om self te registreer (kry die Kliënt-rol)
+          </label>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field
+              label="Privaatheidsbeleid-weergawe"
+              htmlFor="privacyPolicyVersion"
+              hint="Verhoog dit wanneer die bewoording verander. Elke nuwe toestemming word hiermee gemerk."
+            >
+              <Input
+                id="privacyPolicyVersion"
+                value={form.privacyPolicyVersion}
+                onChange={(event) =>
+                  setForm({ ...form, privacyPolicyVersion: event.target.value })
+                }
+                required
+              />
+            </Field>
+
+            <Field
+              label="Bepalings-weergawe"
+              htmlFor="termsVersion"
+              hint="Verhoog dit wanneer die bepalings verander."
+            >
+              <Input
+                id="termsVersion"
+                value={form.termsVersion}
+                onChange={(event) => setForm({ ...form, termsVersion: event.target.value })}
+                required
+              />
+            </Field>
+          </div>
+
+          <p className="text-xs text-(--text-secondary)">
+            Bestaande toestemmings behou die weergawe wat destyds gegeld het, sodat jy
+            altyd kan wys waartoe iemand ingestem het.
+          </p>
         </div>
       </Panel>
 

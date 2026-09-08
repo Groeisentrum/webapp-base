@@ -15,6 +15,14 @@ public class Content : AuditableEntity
 {
     public long CategoryId { get; set; }
 
+    /// <summary>
+    /// Can only narrow what the owning category already allows, never widen it.
+    /// </summary>
+    public Visibility Visibility { get; set; } = Visibility.Public;
+
+    /// <summary>Roles admitted when <see cref="Visibility"/> is Restricted.</summary>
+    public IReadOnlyList<string> VisibleToRoles { get; set; } = [];
+
     public AssetType AssetType { get; set; } = AssetType.None;
 
     /// <summary>URL, storage key or embed id — interpreted according to <see cref="AssetType"/>.</summary>

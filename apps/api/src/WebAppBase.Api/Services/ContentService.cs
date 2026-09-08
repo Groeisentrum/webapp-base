@@ -80,6 +80,8 @@ public sealed class ContentService(
             EventStart = request.EventStart,
             EventEnd = request.EventEnd,
             Recurrence = recurrence,
+            Visibility = request.Visibility,
+            VisibleToRoles = [.. request.VisibleToRoles],
             CreatedAt = clock.UtcNow
         };
 
@@ -147,6 +149,8 @@ public sealed class ContentService(
         content.EventStart = request.EventStart;
         content.EventEnd = request.EventEnd;
         content.Recurrence = recurrence;
+        content.Visibility = request.Visibility;
+        content.VisibleToRoles = [.. request.VisibleToRoles];
         content.UpdatedAt = now;
 
         auditService.Record(
@@ -302,6 +306,8 @@ public sealed class ContentService(
         content.EventStart,
         content.EventEnd,
         MapRecurrenceResponse(content.Recurrence),
+        content.Visibility,
+        content.VisibleToRoles,
         content.CreatedAt,
         content.UpdatedAt);
 

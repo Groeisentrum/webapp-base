@@ -26,6 +26,12 @@ internal sealed class ContentConfiguration : IEntityTypeConfiguration<Content>
 
         builder.Property(content => content.AssetType).HasConversion<int>();
 
+        builder.Property(content => content.Visibility).HasConversion<int>();
+        builder.Property(content => content.VisibleToRoles)
+            .HasConversion(JsonColumn.StringListConverter(), JsonColumn.StringListComparer())
+            .HasColumnType("json")
+            .IsRequired();
+
         builder.Property(content => content.Recurrence)
             .HasConversion(JsonColumn.Converter<Domain.ValueObjects.Recurrence>(), JsonColumn.Comparer<Domain.ValueObjects.Recurrence>())
             .HasColumnType("json")

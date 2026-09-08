@@ -5,6 +5,7 @@ import type {
   CategoryTreeNode,
   Paged,
   TenantSettings,
+  Visibility,
 } from "@/shared/interfaces/Domain";
 
 const LOCAL_API = "/api/local/api";
@@ -13,6 +14,9 @@ export type TenantSettingsInput = {
   siteName: string;
   defaultLanguageCode: string;
   activeLanguageCodes: string[];
+  privacyPolicyVersion: string;
+  termsVersion: string;
+  selfRegistrationEnabled: boolean;
   featureFlags: Record<string, boolean>;
   branding: {
     primaryColour?: string | null;
@@ -38,6 +42,8 @@ export type CategoryInput = {
   colour: string | null;
   icon: string | null;
   sortOrder: number;
+  visibility: Visibility;
+  visibleToRoles: string[];
 };
 
 export async function getTenantSettings(): Promise<TenantSettings> {

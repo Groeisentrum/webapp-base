@@ -38,12 +38,26 @@ export enum WeekOfMonth {
   Last = 5,
 }
 
+/** Who may see an item. Enforced by the API, not merely hidden in navigation. */
+export enum Visibility {
+  Public = 0,
+  Authenticated = 1,
+  Restricted = 2,
+}
+
 export enum AuditAction {
   None = 0,
   Created = 1,
   Updated = 2,
   Deleted = 3,
 }
+
+/** Roles as issued by SkaapHond. Must match the C# Roles constants. */
+export const ROLE_NAMES = {
+  admin: "Admin",
+  content: "Content",
+  client: "Client",
+} as const;
 
 /** Flags this template ships with. A deployment may add its own without a code change. */
 export const FEATURE_FLAGS = {
@@ -92,6 +106,9 @@ export type TenantSettings = {
   siteName: string;
   defaultLanguageCode: string;
   activeLanguageCodes: string[];
+  privacyPolicyVersion: string;
+  termsVersion: string;
+  selfRegistrationEnabled: boolean;
   featureFlags: Record<string, boolean>;
   branding: Branding;
   contactInfo: ContactInfo;
@@ -116,6 +133,8 @@ export type Category = {
   colour: string | null;
   icon: string | null;
   sortOrder: number;
+  visibility: Visibility;
+  visibleToRoles: string[];
   createdAt: string;
   updatedAt: string | null;
 };
@@ -150,6 +169,8 @@ export type Content = {
   eventStart: string | null;
   eventEnd: string | null;
   recurrence: Recurrence;
+  visibility: Visibility;
+  visibleToRoles: string[];
   createdAt: string;
   updatedAt: string | null;
 };
@@ -199,6 +220,8 @@ export type MenuItem = {
   externalUrl: string | null;
   parentMenuItemId: number | null;
   sortOrder: number;
+  visibility: Visibility;
+  visibleToRoles: string[];
   createdAt: string;
   updatedAt: string | null;
 };

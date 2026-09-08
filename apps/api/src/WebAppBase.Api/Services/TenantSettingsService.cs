@@ -114,6 +114,9 @@ public sealed class TenantSettingsService(
         settings.SiteName = request.SiteName;
         settings.DefaultLanguageCode = request.DefaultLanguageCode;
         settings.ActiveLanguageCodes = [.. request.ActiveLanguageCodes];
+        settings.PrivacyPolicyVersion = request.PrivacyPolicyVersion;
+        settings.TermsVersion = request.TermsVersion;
+        settings.SelfRegistrationEnabled = request.SelfRegistrationEnabled;
         settings.FeatureFlags = new FeatureFlags(request.FeatureFlags);
         settings.Branding = MapBranding(request.Branding);
         settings.ContactInfo = MapContactInfo(request.ContactInfo);
@@ -143,6 +146,9 @@ public sealed class TenantSettingsService(
         settings.SiteName,
         settings.DefaultLanguageCode,
         settings.ActiveLanguageCodes,
+        settings.PrivacyPolicyVersion,
+        settings.TermsVersion,
+        settings.SelfRegistrationEnabled,
         settings.FeatureFlags.Flags,
         MapBrandingResponse(settings.Branding),
         MapContactInfoResponse(settings.ContactInfo),

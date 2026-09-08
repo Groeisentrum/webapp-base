@@ -8,6 +8,7 @@ internal sealed class TenantSettingsConfiguration : IEntityTypeConfiguration<Ten
 {
     private const int SiteNameMaxLength = 200;
     private const int LanguageCodeMaxLength = 16;
+    private const int VersionMaxLength = 32;
 
     public void Configure(EntityTypeBuilder<TenantSettings> builder)
     {
@@ -22,6 +23,14 @@ internal sealed class TenantSettingsConfiguration : IEntityTypeConfiguration<Ten
         builder.Property(settings => settings.DefaultLanguageCode)
             .IsRequired()
             .HasMaxLength(LanguageCodeMaxLength);
+
+        builder.Property(settings => settings.PrivacyPolicyVersion)
+            .IsRequired()
+            .HasMaxLength(VersionMaxLength);
+
+        builder.Property(settings => settings.TermsVersion)
+            .IsRequired()
+            .HasMaxLength(VersionMaxLength);
 
         builder.Property(settings => settings.ActiveLanguageCodes)
             .HasConversion(JsonColumn.StringListConverter(), JsonColumn.StringListComparer())

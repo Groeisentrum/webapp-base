@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, EmptyState, Field, Input, Panel, Select, Spinner } from "@/shared/components/ui";
 import { ConfirmDialog, Modal } from "@/shared/components/Modal";
-import type { Category, CategoryTreeNode } from "@/shared/interfaces/Domain";
+import { Visibility, type Category, type CategoryTreeNode } from "@/shared/interfaces/Domain";
+import { VisibilityFields } from "@/shared/components/VisibilityFields";
 import { getSafeUserMessageFromUnknownError } from "@/shared/lib/apiError";
 import {
   createCategory,
@@ -22,6 +23,8 @@ const emptyForm: CategoryInput = {
   colour: null,
   icon: null,
   sortOrder: 0,
+  visibility: Visibility.Public,
+  visibleToRoles: [],
 };
 
 export default function CategoriesPage() {
@@ -81,6 +84,8 @@ export default function CategoriesPage() {
       colour: category.colour,
       icon: category.icon,
       sortOrder: category.sortOrder,
+      visibility: category.visibility,
+      visibleToRoles: category.visibleToRoles,
     });
     setErrorMessage(null);
     setIsFormOpen(true);
@@ -203,6 +208,14 @@ export default function CategoriesPage() {
               />
             </Field>
           </div>
+
+          <VisibilityFields
+            idPrefix="category"
+            cascades
+            visibility={form.visibility}
+            visibleToRoles={form.visibleToRoles}
+            onChange={(next) => setForm({ ...form, ...next })}
+          />
         </div>
       </Modal>
 

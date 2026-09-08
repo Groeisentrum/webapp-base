@@ -12,6 +12,16 @@ public class MenuItem : AuditableEntity
 
     public MenuLinkType LinkType { get; set; } = MenuLinkType.None;
 
+    /// <summary>
+    /// Visibility of the navigation entry itself. A category-linked item is also
+    /// hidden whenever its target category is hidden, so a visible link can never
+    /// point at a page the viewer cannot open.
+    /// </summary>
+    public Visibility Visibility { get; set; } = Visibility.Public;
+
+    /// <summary>Roles admitted when <see cref="Visibility"/> is Restricted.</summary>
+    public IReadOnlyList<string> VisibleToRoles { get; set; } = [];
+
     /// <summary>Label in the deployment's default language; other languages live in translations.</summary>
     public string Label { get; set; } = string.Empty;
 

@@ -4,6 +4,8 @@ import type { AuthUser } from "@/shared/interfaces/AuthState";
 export const ROLES = {
   admin: "Admin",
   content: "Content",
+  /** A registered site visitor. Carries no management rights. */
+  client: "Client",
 } as const;
 
 function hasRole(user: AuthUser | null, role: string): boolean {
@@ -23,7 +25,12 @@ export function canManageContent(user: AuthUser | null): boolean {
   return hasRole(user, ROLES.admin) || hasRole(user, ROLES.content);
 }
 
+/** A registered visitor. Grants access to gated content, never to the admin area. */
+export function isClient(user: AuthUser | null): boolean {
+  return hasRole(user, ROLES.client);
+}
+
 /** True when the user holds any role this app recognises. */
 export function hasAnyKnownRole(user: AuthUser | null): boolean {
-  return isAdmin(user) || canManageContent(user);
+  return isAdmin(user) || canManageContent(user) || isClient(user);
 }

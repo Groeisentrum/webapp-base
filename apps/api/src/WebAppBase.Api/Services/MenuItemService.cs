@@ -53,6 +53,8 @@ public sealed class MenuItemService(
             ExternalUrl = request.ExternalUrl,
             ParentMenuItemId = request.ParentMenuItemId,
             SortOrder = request.SortOrder,
+            Visibility = request.Visibility,
+            VisibleToRoles = [.. request.VisibleToRoles],
             CreatedAt = clock.UtcNow
         };
 
@@ -105,6 +107,8 @@ public sealed class MenuItemService(
         menuItem.ExternalUrl = request.ExternalUrl;
         menuItem.ParentMenuItemId = request.ParentMenuItemId;
         menuItem.SortOrder = request.SortOrder;
+        menuItem.Visibility = request.Visibility;
+        menuItem.VisibleToRoles = [.. request.VisibleToRoles];
         menuItem.UpdatedAt = clock.UtcNow;
 
         auditService.Record(
@@ -206,6 +210,8 @@ public sealed class MenuItemService(
         menuItem.ExternalUrl,
         menuItem.ParentMenuItemId,
         menuItem.SortOrder,
+        menuItem.Visibility,
+        menuItem.VisibleToRoles,
         menuItem.CreatedAt,
         menuItem.UpdatedAt);
 }

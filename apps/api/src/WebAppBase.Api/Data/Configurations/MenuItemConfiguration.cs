@@ -26,6 +26,12 @@ internal sealed class MenuItemConfiguration : IEntityTypeConfiguration<MenuItem>
         builder.Property(menuItem => menuItem.MenuType).HasConversion<int>();
         builder.Property(menuItem => menuItem.LinkType).HasConversion<int>();
 
+        builder.Property(menuItem => menuItem.Visibility).HasConversion<int>();
+        builder.Property(menuItem => menuItem.VisibleToRoles)
+            .HasConversion(JsonColumn.StringListConverter(), JsonColumn.StringListComparer())
+            .HasColumnType("json")
+            .IsRequired();
+
         builder.HasOne(menuItem => menuItem.Category)
             .WithMany()
             .HasForeignKey(menuItem => menuItem.CategoryId)

@@ -42,6 +42,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IClock, SystemClock>();
         services.AddHttpContextAccessor();
         services.AddScoped<IActorContext, HttpActorContext>();
+        services.AddScoped<IViewerContext, HttpViewerContext>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<INotificationService, NotificationService>();
 
@@ -53,6 +54,26 @@ public static class ServiceCollectionExtensions
         services.AddScoped<LocationDetailService>();
         services.AddScoped<AuditLogService>();
         services.AddScoped<PublicContentService>();
+        services.AddScoped<RegistrationService>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the SkaapHond account-creation client. Separate from authentication:
+    /// this is the only outbound call that writes to SkaapHond.
+    /// </summary>
+    public static IServiceCollection AddSkaaphondUserClient(this IServiceCollection services)
+    {
+        services.AddHttpClient<ISkaaphondUserClient, SkaaphondUserClient>((provider, httpClient) =>
+        {
+            var options = provider.GetRequiredService<IOptions<SkaaphondOptions>>().Value;
+
+            if (!string.IsNullOrWhiteSpace(options.BaseUrl))
+            {
+                httpClient.BaseAddress = new Uri(options.BaseUrl);
+            }
+        });
 
         return services;
     }

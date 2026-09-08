@@ -28,6 +28,12 @@ internal sealed class CategoryConfiguration : IEntityTypeConfiguration<Category>
         builder.Property(category => category.Colour).HasMaxLength(ColourMaxLength);
         builder.Property(category => category.Icon).HasMaxLength(IconMaxLength);
 
+        builder.Property(category => category.Visibility).HasConversion<int>();
+        builder.Property(category => category.VisibleToRoles)
+            .HasConversion(JsonColumn.StringListConverter(), JsonColumn.StringListComparer())
+            .HasColumnType("json")
+            .IsRequired();
+
         // Restrict rather than cascade: a self-referencing cascade is rejected by MySQL,
         // and deleting a section should be a deliberate act, not a silent subtree wipe.
         builder.HasOne(category => category.ParentCategory)

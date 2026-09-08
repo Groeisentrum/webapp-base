@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canManageContent, hasAnyKnownRole, isAdmin } from "@/shared/lib/authRoles";
+import { canManageContent, hasAnyKnownRole, isAdmin, isClient } from "@/shared/lib/authRoles";
 import type { AuthUser } from "@/shared/interfaces/AuthState";
 
 function buildUser(roles: string[]): AuthUser {
@@ -49,6 +49,23 @@ describe("canManageContent", () => {
   });
 });
 
+describe("isClient", () => {
+  it("recognises a registered visitor", () => {
+    expect(isClient(buildUser(["Client"]))).toBe(true);
+  });
+
+  /**
+   * A registered visitor must never reach the admin area — that is the whole point
+   * of the role being separate.
+   */
+  it("does not grant the admin area", () => {
+    const client = buildUser(["Client"]);
+
+    expect(isAdmin(client)).toBe(false);
+    expect(canManageContent(client)).toBe(false);
+  });
+});
+
 describe("hasAnyKnownRole", () => {
   it("is false for a token carrying only unrelated roles", () => {
     expect(hasAnyKnownRole(buildUser(["Broker", "Auditor"]))).toBe(false);
@@ -56,5 +73,9 @@ describe("hasAnyKnownRole", () => {
 
   it("is true when one recognised role is present", () => {
     expect(hasAnyKnownRole(buildUser(["Broker", "Content"]))).toBe(true);
+  });
+
+  it("counts a registered visitor as known", () => {
+    expect(hasAnyKnownRole(buildUser(["Client"]))).toBe(true);
   });
 });

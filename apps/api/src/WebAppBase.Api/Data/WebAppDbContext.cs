@@ -25,6 +25,8 @@ public class WebAppDbContext(DbContextOptions<WebAppDbContext> options) : DbCont
 
     public DbSet<NotificationLog> NotificationLogs => Set<NotificationLog>();
 
+    public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

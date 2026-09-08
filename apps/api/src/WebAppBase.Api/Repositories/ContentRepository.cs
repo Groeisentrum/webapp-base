@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using WebAppBase.Api.Data;
 using WebAppBase.Api.Domain.Entities;
+using WebAppBase.Api.Domain.Enums;
 
 namespace WebAppBase.Api.Repositories;
 
@@ -53,6 +54,19 @@ public sealed class ContentRepository(WebAppDbContext dbContext) : IContentRepos
         {
             var searchTerm = query.SearchTerm.Trim();
             source = source.Where(content => content.Title.Contains(searchTerm));
+        }
+
+        if (query.AllowedCategoryIds is not null)
+        {
+            var allowedCategoryIds = query.AllowedCategoryIds;
+            source = source.Where(content => allowedCategoryIds.Contains(content.CategoryId));
+        }
+
+        if (!query.ViewerIsAuthenticated)
+        {
+            // Anonymous callers see only public items. Sign-in-only and role-gated
+            // content is excluded in SQL so it never reaches the caller at all.
+            source = source.Where(content => content.Visibility == Visibility.Public);
         }
 
         return source;

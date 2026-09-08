@@ -1,6 +1,9 @@
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using WebAppBase.Api.Configuration;
 using WebAppBase.Api.Data;
+using WebAppBase.Api.Domain.Constants;
 using WebAppBase.Api.Extensions;
 using WebAppBase.Api.Middleware;
 using WebAppBase.Api.Services;
@@ -37,7 +40,26 @@ builder.Services.AddWebAppPersistence(databaseOptions);
 builder.Services.AddWebAppRepositories();
 builder.Services.AddWebAppServices();
 builder.Services.AddPosduifDispatch();
+builder.Services.AddSkaaphondUserClient();
 builder.Services.AddWebAppAuthentication(skaaphondOptions);
+
+// Self-registration is anonymous and creates accounts upstream, so it is the obvious
+// target for automated abuse. Partitioned by caller address rather than globally, so
+// one abusive source cannot deny registration to everyone else.
+builder.Services.AddRateLimiter(rateLimiter =>
+{
+    rateLimiter.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    rateLimiter.AddPolicy(RateLimitPolicies.Registration, context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ResolvePartitionKey(context),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(15),
+                QueueLimit = 0
+            }));
+});
 
 // Keep the Async suffix in action names so nameof(...) in CreatedAtAction resolves;
 // without this the framework trims it and the generated Location route fails to match.
@@ -67,6 +89,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -74,6 +97,22 @@ app.MapControllers();
 app.MapHealthChecks("/health");
 
 await app.RunAsync();
+
+/// <summary>
+/// Rate-limit partition key. Prefers the address nginx forwarded, since the API
+/// otherwise sees only the proxy and would bucket every caller together.
+/// </summary>
+static string ResolvePartitionKey(HttpContext context)
+{
+    var forwardedFor = context.Request.Headers["X-Forwarded-For"].ToString();
+
+    if (!string.IsNullOrWhiteSpace(forwardedFor))
+    {
+        return forwardedFor.Split(',', StringSplitOptions.TrimEntries)[0];
+    }
+
+    return context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+}
 
 /// <summary>
 /// Exposed so the integration test host can reference the entry point assembly.

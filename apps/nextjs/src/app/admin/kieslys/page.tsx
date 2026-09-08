@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, EmptyState, Field, Input, Panel, Select, Spinner } from "@/shared/components/ui";
 import { ConfirmDialog, Modal } from "@/shared/components/Modal";
-import { MenuLinkType, MenuType, type MenuItem } from "@/shared/interfaces/Domain";
+import { MenuLinkType, MenuType, Visibility, type MenuItem } from "@/shared/interfaces/Domain";
+import { VisibilityFields } from "@/shared/components/VisibilityFields";
 import { getSafeUserMessageFromUnknownError } from "@/shared/lib/apiError";
 import { getCategories } from "@/shared/services/adminService";
 import {
@@ -38,6 +39,8 @@ const emptyForm: MenuItemInput = {
   externalUrl: null,
   parentMenuItemId: null,
   sortOrder: 0,
+  visibility: Visibility.Public,
+  visibleToRoles: [],
 };
 
 export default function MenuItemsPage() {
@@ -91,6 +94,8 @@ export default function MenuItemsPage() {
       externalUrl: menuItem.externalUrl,
       parentMenuItemId: menuItem.parentMenuItemId,
       sortOrder: menuItem.sortOrder,
+      visibility: menuItem.visibility,
+      visibleToRoles: menuItem.visibleToRoles,
     });
     setErrorMessage(null);
     setIsFormOpen(true);
@@ -280,6 +285,13 @@ export default function MenuItemsPage() {
               onChange={(event) => setForm({ ...form, sortOrder: Number(event.target.value) })}
             />
           </Field>
+
+          <VisibilityFields
+            idPrefix="menuItem"
+            visibility={form.visibility}
+            visibleToRoles={form.visibleToRoles}
+            onChange={(next) => setForm({ ...form, ...next })}
+          />
         </div>
       </Modal>
 

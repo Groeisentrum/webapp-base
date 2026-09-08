@@ -66,6 +66,8 @@ public sealed class CategoryService(
             Colour = request.Colour,
             Icon = request.Icon,
             SortOrder = request.SortOrder,
+            Visibility = request.Visibility,
+            VisibleToRoles = [.. request.VisibleToRoles],
             CreatedAt = clock.UtcNow
         };
 
@@ -108,6 +110,8 @@ public sealed class CategoryService(
         category.Colour = request.Colour;
         category.Icon = request.Icon;
         category.SortOrder = request.SortOrder;
+        category.Visibility = request.Visibility;
+        category.VisibleToRoles = [.. request.VisibleToRoles];
         category.UpdatedAt = clock.UtcNow;
 
         auditService.Record(
@@ -281,6 +285,8 @@ public sealed class CategoryService(
         category.Colour,
         category.Icon,
         category.SortOrder,
+        category.Visibility,
+        category.VisibleToRoles,
         category.CreatedAt,
         category.UpdatedAt);
 }

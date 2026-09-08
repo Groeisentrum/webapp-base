@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using WebAppBase.Api.Domain.Enums;
 
 namespace WebAppBase.Api.Models.Requests;
 
@@ -24,6 +25,12 @@ public sealed class CreateCategoryRequest
     public string? Icon { get; set; }
 
     public int SortOrder { get; set; }
+
+    /// <summary>Who may see this. Restricting it also hides everything beneath it.</summary>
+    public Visibility Visibility { get; set; } = Visibility.Public;
+
+    /// <summary>Roles admitted when Visibility is Restricted.</summary>
+    public IReadOnlyList<string> VisibleToRoles { get; set; } = [];
 }
 
 /// <summary>
@@ -48,4 +55,10 @@ public sealed class UpdateCategoryRequest
     public string? Icon { get; set; }
 
     public int SortOrder { get; set; }
+
+    /// <summary>Who may see this. Restricting it also hides everything beneath it.</summary>
+    public Visibility Visibility { get; set; } = Visibility.Public;
+
+    /// <summary>Roles admitted when Visibility is Restricted.</summary>
+    public IReadOnlyList<string> VisibleToRoles { get; set; } = [];
 }

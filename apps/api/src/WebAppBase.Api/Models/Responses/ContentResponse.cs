@@ -18,6 +18,8 @@ public sealed record ContentResponse(
     DateTimeOffset? EventStart,
     DateTimeOffset? EventEnd,
     RecurrenceResponse Recurrence,
+    Visibility Visibility,
+    IReadOnlyList<string> VisibleToRoles,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt);
 

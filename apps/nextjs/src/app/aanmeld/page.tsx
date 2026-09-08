@@ -1,9 +1,11 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Alert, Button, Field, Input, Panel } from "@/shared/components/ui";
 import { login, getSession } from "@/shared/services/authService";
+import { getRegistrationAvailability } from "@/shared/services/registrationService";
 import { useAuthStore } from "@/shared/stores/useAuthStore";
 
 export default function LoginPage() {
@@ -23,6 +25,21 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [canRegister, setCanRegister] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    // Offered only where the deployment has enabled it, so a site with no visitor
+    // accounts shows no dead link.
+    void getRegistrationAvailability().then((available) => {
+      if (!cancelled) setCanRegister(available);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -80,6 +97,15 @@ function LoginForm() {
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Besig om aan te teken..." : "Teken in"}
           </Button>
+
+          {canRegister && (
+            <p className="text-sm text-(--text-secondary)">
+              Nog nie geregistreer nie?{" "}
+              <Link href="/registreer" className="underline">
+                Skep &apos;n rekening
+              </Link>
+            </p>
+          )}
         </form>
       </Panel>
     </main>

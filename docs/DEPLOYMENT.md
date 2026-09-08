@@ -42,6 +42,10 @@ Under `/GroeiSentrum/WebappBase/` (or a client-specific path, set via
 | `Skaaphond/SigningKey` | SecureString | Must match SkaapHond; at least 32 bytes |
 | `Skaaphond/Issuer` | String | Enables issuer validation |
 | `Skaaphond/Audience` | String | Enables audience validation |
+| `Skaaphond/ApiKey` | SecureString | Sent when creating accounts |
+| `Skaaphond/ClientRoleId` | String | Numeric id of the `Client` role — see below |
+| `Skaaphond/DataHolderId` | String | Stamped on self-registered accounts |
+| `Skaaphond/EntityId` | String | Stamped on self-registered accounts |
 | `Posduif/ApiKey` | SecureString | |
 
 Nothing secret belongs in `.env`, in the repository, or in a Docker image.
@@ -49,6 +53,19 @@ Nothing secret belongs in `.env`, in the repository, or in a Docker image.
 > `Skaaphond__AllowUnverifiedTokens` must be **false** in production. It skips
 > issuer and audience checks and exists only so local development works against a dev
 > token. Leaving it true in a deployed environment weakens token validation.
+
+### Enabling visitor registration
+
+Self-registration is off until two things are true, and both are deliberate steps:
+
+1. **The `Client` role exists in SkaapHond** and you know its numeric id. SkaapHond
+   assigns roles by id rather than name, and the id differs per environment, so it
+   cannot be hardcoded here. Create the role through SkaapHond's `RoleController`
+   (Admin-gated) and put the id in `Skaaphond/ClientRoleId`.
+2. **An admin switches it on** for the deployment at `/admin/instellings`.
+
+With the role id unset, the API refuses to register anyone rather than creating
+accounts that carry no role — such an account could sign in but reach nothing.
 
 ## 4. Prepare the instance
 

@@ -150,6 +150,61 @@ A concert page published in January for a December event is visible from January
 stays visible in the following March, because the event being over does not close the
 publish window. Conflating the two would silently unpublish every past event.
 
+### Visibility
+
+Categories, content and menu items each carry `Visibility` (`Public`,
+`Authenticated`, `Restricted`) plus a role list for the restricted case.
+
+Two rules make it hold:
+
+- **Restrictions cascade.** Visibility is checked at every level of the category
+  chain rather than folded into one value, so an item's own setting can only narrow
+  access, never widen it. A public item inside a members-only section stays hidden —
+  otherwise the section's restriction would mean nothing.
+- **Enforcement is server-side.** Hidden items are filtered out of the API, not just
+  omitted from navigation. Hiding a menu entry leaves its URL reachable, and on this
+  template URLs travel — NFC tags and QR codes distribute them.
+
+Hidden items report **404, not 403**, the same as drafts, so a direct URL cannot
+confirm that restricted content exists.
+
+Anonymous callers are filtered in SQL. Role-gated items survive that filter for any
+signed-in viewer and are checked in memory afterwards, which can leave a page shorter
+than its size and the total slightly over-reported. That is acceptable while role-gated
+content is a small subset; a deployment that gates most of its content should replace
+`VisibleToRoles` with a join table so the filter runs in SQL.
+
+### Registration and consent
+
+Visitors self-register through the API — not the webhost — because the API owns the
+consent evidence and already reads secrets from Parameter Store.
+
+```mermaid
+sequenceDiagram
+    participant B as Browser
+    participant W as Webhost
+    participant A as API
+    participant S as SkaapHond
+
+    B->>W: POST /api/register
+    W->>A: POST /api/public/registration (+ caller address)
+    A->>A: write ConsentRecord (policy versions stamped)
+    A->>S: POST /users/create (Client role id)
+    S-->>A: user id
+    A->>A: link record to user id
+    A-->>W: 200 (no token)
+```
+
+The ordering is deliberate: consent is written **before** the account exists, so an
+account can never exist without evidence behind it. A failed creation leaves an
+unlinked record, retained as a trail of the attempt.
+
+Registration mints no session — the visitor signs in afterwards through the normal
+login route. The endpoint is rate limited per caller address, since it is the one
+public route that writes to an upstream system. Upstream failure reasons are logged
+but never returned: they name the account and would let a caller probe which usernames
+exist.
+
 ### Soft deletes
 
 Everything except the audit and notification logs carries `IsDeleted`, and every query

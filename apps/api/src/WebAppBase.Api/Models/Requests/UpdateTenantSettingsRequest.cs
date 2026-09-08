@@ -20,6 +20,19 @@ public sealed class UpdateTenantSettingsRequest
     [MinLength(1)]
     public IReadOnlyList<string> ActiveLanguageCodes { get; set; } = [];
 
+    /// <summary>Bump when the privacy policy wording changes; stamped onto new consent records.</summary>
+    [Required]
+    [MaxLength(32)]
+    public string PrivacyPolicyVersion { get; set; } = "1.0";
+
+    /// <summary>Bump when the terms change; stamped onto new consent records.</summary>
+    [Required]
+    [MaxLength(32)]
+    public string TermsVersion { get; set; } = "1.0";
+
+    /// <summary>Whether visitors may register themselves and receive the Client role.</summary>
+    public bool SelfRegistrationEnabled { get; set; }
+
     public IReadOnlyDictionary<string, bool> FeatureFlags { get; set; } = new Dictionary<string, bool>();
 
     public BrandingRequest Branding { get; set; } = new();

@@ -1,3 +1,5 @@
+using WebAppBase.Api.Domain.Enums;
+
 namespace WebAppBase.Api.Domain.Entities;
 
 /// <summary>
@@ -7,6 +9,12 @@ namespace WebAppBase.Api.Domain.Entities;
 public class Category : AuditableEntity
 {
     public long? ParentCategoryId { get; set; }
+
+    /// <summary>Restricting a category also hides every category and item beneath it.</summary>
+    public Visibility Visibility { get; set; } = Visibility.Public;
+
+    /// <summary>Roles admitted when <see cref="Visibility"/> is Restricted.</summary>
+    public IReadOnlyList<string> VisibleToRoles { get; set; } = [];
 
     /// <summary>Name in the deployment's default language; other languages live in translations.</summary>
     public string Name { get; set; } = string.Empty;

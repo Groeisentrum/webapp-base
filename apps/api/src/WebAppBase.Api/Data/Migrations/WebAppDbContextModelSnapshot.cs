@@ -101,6 +101,13 @@ namespace WebAppBase.Api.Data.Migrations
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("datetime");
 
+                    b.Property<int>("Visibility")
+                        .HasColumnType("int");
+
+                    b.Property<string>("VisibleToRoles")
+                        .IsRequired()
+                        .HasColumnType("json");
+
                     b.HasKey("Id");
 
                     b.HasIndex("IsDeleted");
@@ -111,6 +118,61 @@ namespace WebAppBase.Api.Data.Migrations
                     b.HasIndex("ParentCategoryId", "SortOrder");
 
                     b.ToTable("categories", (string)null);
+                });
+
+            modelBuilder.Entity("WebAppBase.Api.Domain.Entities.ConsentRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("ConsentedAt")
+                        .HasColumnType("datetime");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("varchar(320)");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<string>("PrivacyPolicyVersion")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)");
+
+                    b.Property<string>("SkaaphondUserId")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("TermsVersion")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
+
+                    b.Property<DateTimeOffset?>("WithdrawnAt")
+                        .HasColumnType("datetime");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsentedAt");
+
+                    b.HasIndex("Email");
+
+                    b.HasIndex("SkaaphondUserId");
+
+                    b.ToTable("consent_records", (string)null);
                 });
 
             modelBuilder.Entity("WebAppBase.Api.Domain.Entities.Content", b =>
@@ -165,6 +227,13 @@ namespace WebAppBase.Api.Data.Migrations
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("datetime");
+
+                    b.Property<int>("Visibility")
+                        .HasColumnType("int");
+
+                    b.Property<string>("VisibleToRoles")
+                        .IsRequired()
+                        .HasColumnType("json");
 
                     b.HasKey("Id");
 
@@ -265,6 +334,13 @@ namespace WebAppBase.Api.Data.Migrations
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("datetime");
 
+                    b.Property<int>("Visibility")
+                        .HasColumnType("int");
+
+                    b.Property<string>("VisibleToRoles")
+                        .IsRequired()
+                        .HasColumnType("json");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
@@ -347,10 +423,23 @@ namespace WebAppBase.Api.Data.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<string>("PrivacyPolicyVersion")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)");
+
+                    b.Property<bool>("SelfRegistrationEnabled")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("SiteName")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)");
+
+                    b.Property<string>("TermsVersion")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("datetime");

@@ -29,6 +29,12 @@ public sealed class CreateMenuItemRequest
     public long? ParentMenuItemId { get; set; }
 
     public int SortOrder { get; set; }
+
+    /// <summary>Who may see this. Restricting it also hides everything beneath it.</summary>
+    public Visibility Visibility { get; set; } = Visibility.Public;
+
+    /// <summary>Roles admitted when Visibility is Restricted.</summary>
+    public IReadOnlyList<string> VisibleToRoles { get; set; } = [];
 }
 
 /// <summary>
@@ -57,4 +63,10 @@ public sealed class UpdateMenuItemRequest
     public long? ParentMenuItemId { get; set; }
 
     public int SortOrder { get; set; }
+
+    /// <summary>Who may see this. Restricting it also hides everything beneath it.</summary>
+    public Visibility Visibility { get; set; } = Visibility.Public;
+
+    /// <summary>Roles admitted when Visibility is Restricted.</summary>
+    public IReadOnlyList<string> VisibleToRoles { get; set; } = [];
 }

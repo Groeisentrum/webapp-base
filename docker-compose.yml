@@ -45,6 +45,10 @@ services:
       Skaaphond__BaseUrl: ${SKAAPHOND_API_URL:-https://skaaphond.konnek360.co.za}
       Skaaphond__SigningKey: ${SKAAPHOND_SIGNING_KEY:?set SKAAPHOND_SIGNING_KEY in .env}
       Skaaphond__AllowUnverifiedTokens: "${SKAAPHOND_ALLOW_UNVERIFIED:-true}"
+      Skaaphond__ApiKey: ${SKAAPHOND_API_KEY:-}
+      Skaaphond__ClientRoleId: "${SKAAPHOND_CLIENT_ROLE_ID:-0}"
+      Skaaphond__DataHolderId: "${SKAAPHOND_DATA_HOLDER_ID:-1}"
+      Skaaphond__EntityId: "${SKAAPHOND_ENTITY_ID:-1}"
       Posduif__BaseUrl: ${POSDUIF_URL:-https://posduif.konnek360.co.za}
       Posduif__ApiKey: ${POSDUIF_API_KEY:-}
       Posduif__Enabled: "${POSDUIF_ENABLED:-false}"

@@ -9,6 +9,7 @@ import type {
   Paged,
   RecurrenceFrequency,
   Translation,
+  Visibility,
   WeekOfMonth,
 } from "@/shared/interfaces/Domain";
 
@@ -32,6 +33,9 @@ export type ContentInput = {
     dayOfWeek: number | null;
     weekOfMonth: WeekOfMonth | null;
   } | null;
+  /** Can only narrow what the owning category already allows. */
+  visibility: Visibility;
+  visibleToRoles: string[];
 };
 
 export type ContentFilters = {
@@ -122,6 +126,8 @@ export type MenuItemInput = {
   externalUrl: string | null;
   parentMenuItemId: number | null;
   sortOrder: number;
+  visibility: Visibility;
+  visibleToRoles: string[];
 };
 
 export async function getMenuItems(menuType?: MenuType): Promise<MenuItem[]> {

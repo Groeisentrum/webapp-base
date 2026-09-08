@@ -1,3 +1,5 @@
+using WebAppBase.Api.Domain.Enums;
+
 namespace WebAppBase.Api.Models.Responses;
 
 /// <summary>
@@ -11,6 +13,8 @@ public sealed record CategoryResponse(
     string? Colour,
     string? Icon,
     int SortOrder,
+    Visibility Visibility,
+    IReadOnlyList<string> VisibleToRoles,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt);
 

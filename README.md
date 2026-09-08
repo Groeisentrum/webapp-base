@@ -73,15 +73,44 @@ npm --prefix apps/nextjs run dev
 
 ## Roles
 
-Two flat roles, read from the SkaapHond JWT. There is no local role table.
+Three flat roles, read from the SkaapHond JWT. There is no local role table.
 
 | Role | May change |
 |---|---|
 | `Admin` | Site settings, feature flags, languages, category structure, audit trail |
 | `Content` | Content, translations, menu items, locations |
+| `Client` | Nothing — a registered visitor, granted on self-registration |
 
 `Admin` also covers everything `Content` can do — an admin configuring a site should
-not be locked out of the content inside it.
+not be locked out of the content inside it. `Client` grants no management rights at
+all; it exists so content can be gated behind sign-in.
+
+## Visibility
+
+Categories, content and menu items each carry a visibility setting:
+
+| Setting | Who sees it |
+|---|---|
+| `Public` | anyone (the default) |
+| `Authenticated` | any signed-in user |
+| `Restricted` | only the listed roles |
+
+Two rules make this hold. **Restrictions cascade**: hiding a category hides everything
+inside it, and an item's own setting can only narrow access, never widen it. And
+**enforcement is server-side**: a hidden item is filtered out of the API, not merely
+omitted from the menu, because URLs on this template travel via NFC tags and QR codes.
+Hidden items report 404 rather than 403, so a direct URL cannot confirm they exist.
+
+## Registration
+
+Visitors can register themselves and receive the `Client` role. Off by default —
+switch it on per deployment at `/admin/instellings`, which needs
+`SKAAPHOND_CLIENT_ROLE_ID` configured (see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)).
+
+Registration writes a POPIA consent record stamped with the privacy-policy and terms
+versions in force, *before* the account is created — so an account can never exist
+without evidence of consent behind it, and you can always show which wording someone
+actually agreed to.
 
 ## Layout
 

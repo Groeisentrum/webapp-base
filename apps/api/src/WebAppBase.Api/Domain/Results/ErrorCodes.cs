@@ -23,4 +23,7 @@ public static class ErrorCodes
     public const string LocationNotFound = "location_not_found";
     public const string InvalidCoordinates = "invalid_coordinates";
     public const string TenantSettingsNotInitialised = "tenant_settings_not_initialised";
+    public const string ConsentRequired = "consent_required";
+    public const string RegistrationDisabled = "registration_disabled";
+    public const string RegistrationFailed = "registration_failed";
 }
