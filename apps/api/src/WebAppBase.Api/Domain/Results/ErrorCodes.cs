@@ -27,4 +27,10 @@ public static class ErrorCodes
     public const string RegistrationDisabled = "registration_disabled";
     public const string RegistrationFailed = "registration_failed";
     public const string PasswordTooWeak = "password_too_weak";
+    public const string RegistrationAlreadyCompleted = "registration_already_completed";
+    public const string VerificationNotFound = "verification_not_found";
+    public const string VerificationCodeIncorrect = "verification_code_incorrect";
+    public const string VerificationExpired = "verification_expired";
+    public const string VerificationCooldown = "verification_cooldown";
+    public const string VerificationUnavailable = "verification_unavailable";
 }

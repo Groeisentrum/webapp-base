@@ -33,6 +33,19 @@ public class ConsentRecord
 
     public DateTimeOffset ConsentedAt { get; set; }
 
+    /// <summary>
+    /// SkaapHond's handle for the email verification issued at the start of registration.
+    /// </summary>
+    /// <remarks>
+    /// Also what binds the two steps together. Completion reads the email and username
+    /// from this row rather than from the second request, so a caller cannot verify one
+    /// address and then register a different one.
+    /// </remarks>
+    public string? OtpPendingId { get; set; }
+
+    /// <summary>When the address was proven. Null until the code is verified.</summary>
+    public DateTimeOffset? EmailVerifiedAt { get; set; }
+
     /// <summary>Recorded for evidential value; treat as personal information itself.</summary>
     public string? IpAddress { get; set; }
 

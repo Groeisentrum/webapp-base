@@ -6,6 +6,14 @@ export type RegistrationInput = {
   acceptTerms: boolean;
 };
 
+/** Outcome of step one. A code has been sent; no account exists yet. */
+export type RegistrationStarted = {
+  pendingId: string;
+  expiresAt: string;
+  /** SkaapHond's redacted address, so the visitor knows which inbox to check. */
+  recipientMasked: string | null;
+};
+
 export type RegistrationResult = {
   userName: string;
   email: string;
@@ -13,23 +21,32 @@ export type RegistrationResult = {
 };
 
 /**
- * Registers a site visitor, who receives the Client role.
+ * Registration runs in two steps: the address is verified before the account is
+ * created, so no account ever exists for an unproven address.
  *
- * Not wrapped in the auto-logout fetcher: the caller is by definition signed out, so
- * a failure here is never a session problem.
+ * None of these are wrapped in the auto-logout fetcher — the caller is by definition
+ * signed out, so a failure here is never a session problem.
  */
-export async function register(input: RegistrationInput): Promise<RegistrationResult> {
-  const response = await fetch("/api/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
+export async function startRegistration(input: RegistrationInput): Promise<RegistrationStarted> {
+  return post<RegistrationStarted>("start", input);
+}
 
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
-  }
+/**
+ * Verifies the code and creates the account.
+ *
+ * Sends no email or username: the API takes those from the record written at step one,
+ * so a verified address cannot be swapped for another one here.
+ */
+export async function completeRegistration(input: {
+  pendingId: string;
+  code: string;
+  password: string;
+}): Promise<RegistrationResult> {
+  return post<RegistrationResult>("complete", input);
+}
 
-  return (await response.json()) as RegistrationResult;
+export async function resendRegistrationCode(pendingId: string): Promise<RegistrationStarted> {
+  return post<RegistrationStarted>("resend", { pendingId });
 }
 
 /** Whether the site should offer registration at all. */
@@ -47,6 +64,20 @@ export async function getRegistrationAvailability(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+async function post<TResult>(action: string, body: unknown): Promise<TResult> {
+  const response = await fetch(`/api/register/${action}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return (await response.json()) as TResult;
 }
 
 async function readErrorMessage(response: Response): Promise<string> {

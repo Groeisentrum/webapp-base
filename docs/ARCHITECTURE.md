@@ -174,10 +174,10 @@ than its size and the total slightly over-reported. That is acceptable while rol
 content is a small subset; a deployment that gates most of its content should replace
 `VisibleToRoles` with a join table so the filter runs in SQL.
 
-### Registration and consent
+### Registration, verification and consent
 
 Visitors self-register through the API — not the webhost — because the API owns the
-consent evidence and already reads secrets from Parameter Store.
+consent evidence and already reads secrets from Parameter Store. It runs in two steps.
 
 ```mermaid
 sequenceDiagram
@@ -186,24 +186,50 @@ sequenceDiagram
     participant A as API
     participant S as SkaapHond
 
-    B->>W: POST /api/register
-    W->>A: POST /api/public/registration (+ caller address)
-    A->>A: write ConsentRecord (policy versions stamped)
+    Note over B,S: Step 1 — consent and code
+    B->>W: POST /api/register/start
+    W->>A: + caller address
+    A->>S: POST /auth/v2/otp/send (purpose: registration)
+    S-->>A: pendingId
+    A->>A: write ConsentRecord (versions stamped, pendingId)
+    A-->>B: pendingId, masked recipient
+
+    Note over B,S: Step 2 — verify, then create
+    B->>W: POST /api/register/complete (pendingId, code, password)
+    W->>A: 
+    A->>S: POST /auth/v2/otp/verify
+    S-->>A: verified
     A->>S: POST /users/create (Client role id)
     S-->>A: user id
     A->>A: link record to user id
-    A-->>W: 200 (no token)
+    A-->>B: 200 (no token)
 ```
 
-The ordering is deliberate: consent is written **before** the account exists, so an
-account can never exist without evidence behind it. A failed creation leaves an
-unlinked record, retained as a trail of the attempt.
+Three orderings carry weight here:
 
-Registration mints no session — the visitor signs in afterwards through the normal
-login route. The endpoint is rate limited per caller address, since it is the one
-public route that writes to an upstream system. Upstream failure reasons are logged
-but never returned: they name the account and would let a caller probe which usernames
-exist.
+- **Verify before create.** No account ever exists for an unproven address, so there
+  is no half-registered state to clean up. It also makes SkaapHond's hardcoded
+  `EmailConfirmed = true` on `/users/create` accurate rather than an assumption.
+- **Consent before anything.** Written at step one, so an account can never exist
+  without evidence behind it. An abandoned registration leaves an unlinked record,
+  retained as a trail of the attempt.
+- **Identity comes from the record, not the request.** Step two carries no email or
+  username — those are read from the consent row the pendingId points at. Otherwise a
+  caller could verify one address and register under a different one.
+
+Registration mints no session; the visitor signs in afterwards through the normal login
+route. Every step is rate limited per caller address, since these are the only public
+routes that write to an upstream system. Upstream failure reasons are logged but never
+returned — they name the account and would let a caller probe which usernames exist.
+
+> **SkaapHond prerequisite.** Verification happens before the account exists, so the
+> OTP row carries no user id. SkaapHond permits that only on its contact-bound path,
+> which is gated on a fixed set of purposes. `registration` must be added to its
+> `OtpPurposes` and admitted to that branch, or `/otp/send` answers "user not found".
+> Until then registration **fails closed** — it refuses rather than creating anything
+> unverified. Do not substitute `signing-ceremony` to avoid the change: purposes scope
+> resend invalidation, so reusing one conflates two intents and muddies any audit of
+> OTP rows.
 
 ### Soft deletes
 

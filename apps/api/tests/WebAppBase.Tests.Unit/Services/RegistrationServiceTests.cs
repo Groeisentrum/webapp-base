@@ -16,11 +16,13 @@ namespace WebAppBase.Tests.Unit.Services;
 public sealed class RegistrationServiceTests : IDisposable
 {
     private const int ClientRoleId = 7;
+    private const string PendingId = "pending-abc";
 
     private readonly WebAppDbContext dbContext;
     private readonly ITenantSettingsRepository tenantSettingsRepository =
         Substitute.For<ITenantSettingsRepository>();
     private readonly ISkaaphondUserClient skaaphondUserClient = Substitute.For<ISkaaphondUserClient>();
+    private readonly ISkaaphondOtpClient skaaphondOtpClient = Substitute.For<ISkaaphondOtpClient>();
     private readonly RegistrationService registrationService;
 
     public RegistrationServiceTests()
@@ -35,56 +37,32 @@ public sealed class RegistrationServiceTests : IDisposable
         unitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>())
             .Returns(callInfo => dbContext.SaveChangesAsync(callInfo.Arg<CancellationToken>()));
 
-        registrationService = new RegistrationService(
-            dbContext,
-            tenantSettingsRepository,
-            skaaphondUserClient,
-            Options.Create(new SkaaphondOptions { ClientRoleId = ClientRoleId }),
-            unitOfWork,
-            FixedClock.Default(),
-            NullLogger<RegistrationService>.Instance);
+        registrationService = BuildService(unitOfWork, ClientRoleId);
 
         tenantSettingsRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(BuildSettings(true));
+
+        skaaphondOtpClient.SendAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(OtpSendOutcome.Success(PendingId, DateTimeOffset.UtcNow.AddMinutes(10), "b***@v***.co.za"));
+        skaaphondOtpClient.VerifyAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(OtpVerifyOutcome.Success());
         skaaphondUserClient
             .CreateClientUserAsync(
                 Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(SkaaphondUserCreationResult.Success("user-123"));
     }
 
+    // ---- Step one: consent and code ----------------------------------------
+
     [Fact]
-    public async Task RegisterAsync_WithoutPrivacyConsent_Fails()
+    public async Task StartAsync_WithoutPrivacyConsent_Fails()
     {
         var request = BuildRequest();
         request.ConsentToPrivacyPolicy = false;
 
-        var result = await registrationService.RegisterAsync(request, null, null, CancellationToken.None);
+        var result = await registrationService.StartAsync(request, null, null, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be(ErrorCodes.ConsentRequired);
-    }
-
-    [Fact]
-    public async Task RegisterAsync_WithoutAcceptingTerms_Fails()
-    {
-        var request = BuildRequest();
-        request.AcceptTerms = false;
-
-        var result = await registrationService.RegisterAsync(request, null, null, CancellationToken.None);
-
-        result.IsFailure.Should().BeTrue();
-        result.Error!.Code.Should().Be(ErrorCodes.ConsentRequired);
-    }
-
-    [Fact]
-    public async Task RegisterAsync_WithoutConsent_CreatesNoAccount()
-    {
-        var request = BuildRequest();
-        request.ConsentToPrivacyPolicy = false;
-
-        await registrationService.RegisterAsync(request, null, null, CancellationToken.None);
-
-        await skaaphondUserClient.DidNotReceive().CreateClientUserAsync(
-            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -93,123 +71,277 @@ public sealed class RegistrationServiceTests : IDisposable
     [InlineData("GEENKLEINLETTER1!")]
     [InlineData("GeenSyfer!")]
     [InlineData("GeenSpesiaal1")]
-    public async Task RegisterAsync_WithAWeakPassword_FailsBeforeReachingSkaaphond(string password)
+    public async Task StartAsync_WithAWeakPassword_SendsNoCode(string password)
     {
         var request = BuildRequest();
         request.Password = password;
 
-        var result = await registrationService.RegisterAsync(request, null, null, CancellationToken.None);
+        var result = await registrationService.StartAsync(request, null, null, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be(ErrorCodes.PasswordTooWeak);
-        await skaaphondUserClient.DidNotReceive().CreateClientUserAsync(
-            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task RegisterAsync_WhenSelfRegistrationIsOff_Fails()
-    {
-        tenantSettingsRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(BuildSettings(false));
-
-        var result = await registrationService.RegisterAsync(
-            BuildRequest(), null, null, CancellationToken.None);
-
-        result.IsFailure.Should().BeTrue();
-        result.Error!.Code.Should().Be(ErrorCodes.RegistrationDisabled);
+        await skaaphondOtpClient.DidNotReceive().SendAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
-    /// Without a role id the account would carry no role and could reach nothing, so
-    /// creating it would strand a real person.
+    /// The whole point of verifying first: nothing is created until the address is proven.
     /// </summary>
     [Fact]
-    public async Task RegisterAsync_WithoutAConfiguredClientRole_CreatesNoAccount()
+    public async Task StartAsync_CreatesNoAccount()
     {
-        var service = new RegistrationService(
-            dbContext,
-            tenantSettingsRepository,
-            skaaphondUserClient,
-            Options.Create(new SkaaphondOptions { ClientRoleId = 0 }),
-            Substitute.For<IUnitOfWork>(),
-            FixedClock.Default(),
-            NullLogger<RegistrationService>.Instance);
+        await registrationService.StartAsync(BuildRequest(), null, null, CancellationToken.None);
 
-        var result = await service.RegisterAsync(BuildRequest(), null, null, CancellationToken.None);
-
-        result.IsFailure.Should().BeTrue();
-        result.Error!.Code.Should().Be(ErrorCodes.RegistrationDisabled);
         await skaaphondUserClient.DidNotReceive().CreateClientUserAsync(
             Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task RegisterAsync_OnSuccess_RecordsConsentLinkedToTheNewAccount()
+    public async Task StartAsync_RecordsConsentAgainstThePendingVerification()
     {
-        var result = await registrationService.RegisterAsync(
+        var result = await registrationService.StartAsync(
             BuildRequest(), "203.0.113.7", "Toets/1.0", CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
+        result.Value.PendingId.Should().Be(PendingId);
+        result.Value.RecipientMasked.Should().Be("b***@v***.co.za");
 
         var record = await dbContext.ConsentRecords.SingleAsync();
-        record.SkaaphondUserId.Should().Be("user-123");
-        record.Email.Should().Be("besoeker@voorbeeld.co.za");
-        record.IpAddress.Should().Be("203.0.113.7");
-        record.UserAgent.Should().Be("Toets/1.0");
-    }
-
-    /// <summary>
-    /// The versions in force at the time are stamped on the record, so you can still
-    /// show what a person agreed to after the wording changes.
-    /// </summary>
-    [Fact]
-    public async Task RegisterAsync_StampsThePolicyVersionsInForce()
-    {
-        await registrationService.RegisterAsync(BuildRequest(), null, null, CancellationToken.None);
-
-        var record = await dbContext.ConsentRecords.SingleAsync();
+        record.OtpPendingId.Should().Be(PendingId);
         record.PrivacyPolicyVersion.Should().Be("2.1");
         record.TermsVersion.Should().Be("1.4");
-        record.ConsentedAt.Should().Be(FixedClock.DefaultInstant);
+        record.EmailVerifiedAt.Should().BeNull();
+        record.SkaaphondUserId.Should().BeNull();
+        record.IpAddress.Should().Be("203.0.113.7");
     }
 
     /// <summary>
-    /// Consent is written before the account is created, so a failure upstream leaves
-    /// evidence of the attempt rather than an account with no consent behind it.
+    /// The likely cause is that SkaapHond has not admitted the registration purpose to
+    /// its contact-bound path, so it searched for a user row that cannot exist yet.
+    /// Registration must fail closed rather than proceed unverified.
     /// </summary>
     [Fact]
-    public async Task RegisterAsync_WhenSkaaphondRejects_KeepsTheConsentRecordUnlinked()
+    public async Task StartAsync_WhenSkaaphondRefusesThePurpose_FailsClosed()
     {
-        skaaphondUserClient
-            .CreateClientUserAsync(
-                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(SkaaphondUserCreationResult.Failure("400: Username already exists."));
+        skaaphondOtpClient.SendAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(OtpSendOutcome.Failed(OtpFailure.NotSupported, "User not found."));
 
-        var result = await registrationService.RegisterAsync(
+        var result = await registrationService.StartAsync(
             BuildRequest(), null, null, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be(ErrorCodes.RegistrationDisabled);
+        (await dbContext.ConsentRecords.CountAsync()).Should().Be(0);
+        await skaaphondUserClient.DidNotReceive().CreateClientUserAsync(
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task StartAsync_WhenSelfRegistrationIsOff_SendsNoCode()
+    {
+        tenantSettingsRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(BuildSettings(false));
+
+        var result = await registrationService.StartAsync(
+            BuildRequest(), null, null, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be(ErrorCodes.RegistrationDisabled);
+        await skaaphondOtpClient.DidNotReceive().SendAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task StartAsync_WithoutAConfiguredClientRole_SendsNoCode()
+    {
+        var service = BuildService(Substitute.For<IUnitOfWork>(), clientRoleId: 0);
+
+        var result = await service.StartAsync(BuildRequest(), null, null, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be(ErrorCodes.RegistrationDisabled);
+        await skaaphondOtpClient.DidNotReceive().SendAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    // ---- Step two: verify and create ---------------------------------------
+
+    [Fact]
+    public async Task CompleteAsync_WithTheCorrectCode_CreatesTheAccount()
+    {
+        await registrationService.StartAsync(BuildRequest(), null, null, CancellationToken.None);
+
+        var result = await registrationService.CompleteAsync(
+            BuildCompleteRequest(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Email.Should().Be("besoeker@voorbeeld.co.za");
 
         var record = await dbContext.ConsentRecords.SingleAsync();
-        record.SkaaphondUserId.Should().BeNull();
+        record.EmailVerifiedAt.Should().Be(FixedClock.DefaultInstant);
+        record.SkaaphondUserId.Should().Be("user-123");
+    }
+
+    [Fact]
+    public async Task CompleteAsync_WithAWrongCode_CreatesNoAccount()
+    {
+        await registrationService.StartAsync(BuildRequest(), null, null, CancellationToken.None);
+
+        skaaphondOtpClient.VerifyAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(OtpVerifyOutcome.Rejected(2));
+
+        var result = await registrationService.CompleteAsync(
+            BuildCompleteRequest(), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be(ErrorCodes.VerificationCodeIncorrect);
+        result.Error.Message.Should().Contain("2");
+
+        await skaaphondUserClient.DidNotReceive().CreateClientUserAsync(
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+
+        var record = await dbContext.ConsentRecords.SingleAsync();
+        record.EmailVerifiedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CompleteAsync_WithAnExpiredCode_ReportsExpiry()
+    {
+        await registrationService.StartAsync(BuildRequest(), null, null, CancellationToken.None);
+
+        skaaphondOtpClient.VerifyAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(OtpVerifyOutcome.Failed(OtpFailure.Expired, null));
+
+        var result = await registrationService.CompleteAsync(
+            BuildCompleteRequest(), CancellationToken.None);
+
+        result.Error!.Code.Should().Be(ErrorCodes.VerificationExpired);
+    }
+
+    [Fact]
+    public async Task CompleteAsync_WithAnUnknownPendingId_IsNotFound()
+    {
+        var request = BuildCompleteRequest();
+        request.PendingId = "geen-sodanige-id";
+
+        var result = await registrationService.CompleteAsync(request, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Kind.Should().Be(ErrorKind.NotFound);
+    }
+
+    [Fact]
+    public async Task CompleteAsync_RunTwice_RefusesTheSecondAttempt()
+    {
+        await registrationService.StartAsync(BuildRequest(), null, null, CancellationToken.None);
+        await registrationService.CompleteAsync(BuildCompleteRequest(), CancellationToken.None);
+
+        var second = await registrationService.CompleteAsync(
+            BuildCompleteRequest(), CancellationToken.None);
+
+        second.IsFailure.Should().BeTrue();
+        second.Error!.Code.Should().Be(ErrorCodes.RegistrationAlreadyCompleted);
     }
 
     /// <summary>
-    /// The upstream message names the account. Echoing it would let a caller probe
-    /// which usernames exist.
+    /// The account is created from the address recorded at step one, so verifying one
+    /// address and completing with another cannot register the unverified one.
     /// </summary>
     [Fact]
-    public async Task RegisterAsync_WhenSkaaphondRejects_DoesNotLeakTheUpstreamReason()
+    public async Task CompleteAsync_UsesTheVerifiedAddressNotTheRequest()
     {
+        await registrationService.StartAsync(BuildRequest(), null, null, CancellationToken.None);
+
+        await registrationService.CompleteAsync(BuildCompleteRequest(), CancellationToken.None);
+
+        await skaaphondUserClient.Received(1).CreateClientUserAsync(
+            "besoeker",
+            "besoeker@voorbeeld.co.za",
+            Arg.Any<string>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CompleteAsync_WithAWeakPassword_VerifiesNothing()
+    {
+        await registrationService.StartAsync(BuildRequest(), null, null, CancellationToken.None);
+
+        var request = BuildCompleteRequest();
+        request.Password = "swak";
+
+        var result = await registrationService.CompleteAsync(request, CancellationToken.None);
+
+        result.Error!.Code.Should().Be(ErrorCodes.PasswordTooWeak);
+        await skaaphondOtpClient.DidNotReceive().VerifyAsync(
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CompleteAsync_WhenSkaaphondRejects_KeepsTheAddressMarkedVerified()
+    {
+        await registrationService.StartAsync(BuildRequest(), null, null, CancellationToken.None);
+
         skaaphondUserClient
             .CreateClientUserAsync(
                 Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(SkaaphondUserCreationResult.Failure("400: Username [besoeker] already exists."));
 
-        var result = await registrationService.RegisterAsync(
-            BuildRequest(), null, null, CancellationToken.None);
+        var result = await registrationService.CompleteAsync(
+            BuildCompleteRequest(), CancellationToken.None);
 
+        result.IsFailure.Should().BeTrue();
         result.Error!.Message.Should().NotContain("besoeker");
-        result.Error.Message.Should().NotContain("already exists");
+
+        var record = await dbContext.ConsentRecords.SingleAsync();
+        record.EmailVerifiedAt.Should().NotBeNull();
+        record.SkaaphondUserId.Should().BeNull();
+    }
+
+    // ---- Resend ------------------------------------------------------------
+
+    /// <summary>
+    /// SkaapHond invalidates the previous code and issues a new handle, so the stored
+    /// one has to follow or completion would look up an id that no longer exists.
+    /// </summary>
+    [Fact]
+    public async Task ResendCodeAsync_TracksTheNewPendingId()
+    {
+        await registrationService.StartAsync(BuildRequest(), null, null, CancellationToken.None);
+
+        skaaphondOtpClient.ResendAsync(PendingId, Arg.Any<CancellationToken>())
+            .Returns(OtpSendOutcome.Success("pending-xyz", DateTimeOffset.UtcNow.AddMinutes(10), null));
+
+        var result = await registrationService.ResendCodeAsync(
+            new ResendRegistrationCodeRequest { PendingId = PendingId }, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.PendingId.Should().Be("pending-xyz");
+
+        var record = await dbContext.ConsentRecords.SingleAsync();
+        record.OtpPendingId.Should().Be("pending-xyz");
+    }
+
+    [Fact]
+    public async Task ResendCodeAsync_DuringCooldown_ReportsIt()
+    {
+        await registrationService.StartAsync(BuildRequest(), null, null, CancellationToken.None);
+
+        skaaphondOtpClient.ResendAsync(PendingId, Arg.Any<CancellationToken>())
+            .Returns(OtpSendOutcome.Failed(OtpFailure.CooldownActive, null));
+
+        var result = await registrationService.ResendCodeAsync(
+            new ResendRegistrationCodeRequest { PendingId = PendingId }, CancellationToken.None);
+
+        result.Error!.Code.Should().Be(ErrorCodes.VerificationCooldown);
+    }
+
+    [Fact]
+    public async Task ResendCodeAsync_AfterCompletion_IsRefused()
+    {
+        await registrationService.StartAsync(BuildRequest(), null, null, CancellationToken.None);
+        await registrationService.CompleteAsync(BuildCompleteRequest(), CancellationToken.None);
+
+        var result = await registrationService.ResendCodeAsync(
+            new ResendRegistrationCodeRequest { PendingId = PendingId }, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Kind.Should().Be(ErrorKind.NotFound);
     }
 
     [Fact]
@@ -225,6 +357,16 @@ public sealed class RegistrationServiceTests : IDisposable
     }
 
     public void Dispose() => dbContext.Dispose();
+
+    private RegistrationService BuildService(IUnitOfWork unitOfWork, int clientRoleId) => new(
+        dbContext,
+        tenantSettingsRepository,
+        skaaphondUserClient,
+        skaaphondOtpClient,
+        Options.Create(new SkaaphondOptions { ClientRoleId = clientRoleId }),
+        unitOfWork,
+        FixedClock.Default(),
+        NullLogger<RegistrationService>.Instance);
 
     private static TenantSettings BuildSettings(bool selfRegistrationEnabled) => new()
     {
@@ -244,5 +386,12 @@ public sealed class RegistrationServiceTests : IDisposable
         Password = "Wagwoord1!",
         ConsentToPrivacyPolicy = true,
         AcceptTerms = true
+    };
+
+    private static CompleteRegistrationRequest BuildCompleteRequest() => new()
+    {
+        PendingId = PendingId,
+        Code = "123456",
+        Password = "Wagwoord1!"
     };
 }

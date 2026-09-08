@@ -56,16 +56,35 @@ Nothing secret belongs in `.env`, in the repository, or in a Docker image.
 
 ### Enabling visitor registration
 
-Self-registration is off until two things are true, and both are deliberate steps:
+Registration is off until four things are true. Each is a deliberate step, and the
+API fails closed on any of them rather than creating something half-formed.
 
 1. **The `Client` role exists in SkaapHond** and you know its numeric id. SkaapHond
    assigns roles by id rather than name, and the id differs per environment, so it
    cannot be hardcoded here. Create the role through SkaapHond's `RoleController`
-   (Admin-gated) and put the id in `Skaaphond/ClientRoleId`.
-2. **An admin switches it on** for the deployment at `/admin/instellings`.
+   (Admin-gated) and put the id in `Skaaphond/ClientRoleId`. With it unset the API
+   refuses to register anyone rather than creating accounts that carry no role —
+   such an account could sign in but reach nothing.
 
-With the role id unset, the API refuses to register anyone rather than creating
-accounts that carry no role — such an account could sign in but reach nothing.
+2. **SkaapHond accepts the `registration` OTP purpose.** Email is verified before the
+   account exists, so the OTP row carries no user id, and SkaapHond permits that only
+   on its contact-bound path. That path is gated on a fixed purpose set, so
+   `registration` must be added to its `OtpPurposes` **and** admitted to the branch in
+   `OtpController.Send`. Until then `/otp/send` answers "user not found" and
+   registration refuses — nothing unverified is ever created.
+
+3. **A real system API key is configured.** `/otp/send` is `[AuthorizeSystem]`-gated
+   and reads `DataHolderId` and `ApiKey` claims off the caller to fund gateway
+   dispatch, so a placeholder will not do. `/otp/verify` and `/otp/resend` are
+   anonymous and need nothing.
+
+4. **An admin switches it on** for the deployment at `/admin/instellings`, where the
+   privacy-policy and terms versions are also set.
+
+> Related, and worth fixing on the SkaapHond side: `/users/create` currently hardcodes
+> `EmailConfirmed = true`. With verify-before-create that value is accurate for this
+> template, but it means SkaapHond cannot distinguish verified from unverified accounts
+> created by any other route.
 
 ## 4. Prepare the instance
 

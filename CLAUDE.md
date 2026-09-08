@@ -31,6 +31,11 @@ WolkPoort when it needs another service's data. Do not add it to the function re
   `ConsentRecord` — stamped with the policy versions in force — *before* the account
   is created, so an account can never exist without evidence behind it. Never
   soft-delete those records.
+- **Registration verifies the email before creating the account**, so no account ever
+  exists for an unproven address. Step two takes identity from the stored consent
+  record, never from the request — otherwise a caller could verify one address and
+  register another. Needs `OtpPurposes.Registration` admitted to SkaapHond's
+  contact-bound path; until then it fails closed. See `docs/DEPLOYMENT.md`.
 - Never call `fetch` directly in components — use the typed services in
   `src/shared/services/`.
 - Never hardcode colours — use the semantic tokens in `globals.css`.
@@ -49,7 +54,7 @@ WolkPoort when it needs another service's data. Do not add it to the function re
 
 ```bash
 docker compose up --build          # full stack on https://localhost
-dotnet test --project apps/api     # 159 tests: unit + integration
+dotnet test --project apps/api     # 167 tests: unit + integration
 npm --prefix apps/nextjs run lint
 npm --prefix apps/nextjs run build
 npm --prefix apps/nextjs run test  # 60 tests

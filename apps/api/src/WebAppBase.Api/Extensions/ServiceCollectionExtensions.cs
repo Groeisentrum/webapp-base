@@ -65,17 +65,20 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddSkaaphondUserClient(this IServiceCollection services)
     {
-        services.AddHttpClient<ISkaaphondUserClient, SkaaphondUserClient>((provider, httpClient) =>
-        {
-            var options = provider.GetRequiredService<IOptions<SkaaphondOptions>>().Value;
-
-            if (!string.IsNullOrWhiteSpace(options.BaseUrl))
-            {
-                httpClient.BaseAddress = new Uri(options.BaseUrl);
-            }
-        });
+        services.AddHttpClient<ISkaaphondUserClient, SkaaphondUserClient>(ConfigureSkaaphondClient);
+        services.AddHttpClient<ISkaaphondOtpClient, SkaaphondOtpClient>(ConfigureSkaaphondClient);
 
         return services;
+    }
+
+    private static void ConfigureSkaaphondClient(IServiceProvider provider, HttpClient httpClient)
+    {
+        var options = provider.GetRequiredService<IOptions<SkaaphondOptions>>().Value;
+
+        if (!string.IsNullOrWhiteSpace(options.BaseUrl))
+        {
+            httpClient.BaseAddress = new Uri(options.BaseUrl);
+        }
     }
 
     public static IServiceCollection AddPosduifDispatch(this IServiceCollection services)

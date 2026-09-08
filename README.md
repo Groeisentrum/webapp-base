@@ -107,10 +107,16 @@ Visitors can register themselves and receive the `Client` role. Off by default �
 switch it on per deployment at `/admin/instellings`, which needs
 `SKAAPHOND_CLIENT_ROLE_ID` configured (see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)).
 
-Registration writes a POPIA consent record stamped with the privacy-policy and terms
-versions in force, *before* the account is created — so an account can never exist
-without evidence of consent behind it, and you can always show which wording someone
-actually agreed to.
+It runs in two steps: details, then an emailed verification code. The account is
+created only once the address is proven, so nothing is left behind by an abandoned
+registration.
+
+A POPIA consent record — stamped with the privacy-policy and terms versions in force —
+is written before any of that, so an account can never exist without evidence of
+consent behind it, and you can always show which wording someone actually agreed to.
+
+Email verification needs one change on the SkaapHond side before it will work; see
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Until then registration fails closed.
 
 ## Layout
 

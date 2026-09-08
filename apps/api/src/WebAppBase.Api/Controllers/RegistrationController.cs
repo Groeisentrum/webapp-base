@@ -13,9 +13,12 @@ namespace WebAppBase.Api.Controllers;
 /// Self-registration for site visitors, who receive the Client role.
 /// </summary>
 /// <remarks>
-/// Anonymous by necessity and rate limited by consequence: this is the one public
-/// endpoint that creates records in an upstream system, so it is the obvious target
-/// for automated abuse.
+/// Two steps: <c>start</c> records consent and emails a code, <c>complete</c> verifies
+/// it and creates the account. No account exists until the address is proven.
+///
+/// Anonymous by necessity and rate limited by consequence: these are the only public
+/// endpoints that write to an upstream system, so they are the obvious target for
+/// automated abuse.
 /// </remarks>
 [ApiController]
 [Route("api/public/registration")]
@@ -33,21 +36,55 @@ public sealed class RegistrationController(RegistrationService registrationServi
         return result.ToActionResult();
     }
 
-    [HttpPost]
+    /// <summary>Records consent and sends a verification code. Creates no account.</summary>
+    [HttpPost("start")]
     [EnableRateLimiting(RateLimitPolicies.Registration)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
-    public async Task<ActionResult<RegistrationResponse>> RegisterAsync(
+    public async Task<ActionResult<RegistrationStartedResponse>> StartAsync(
         [FromBody] RegisterClientRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await registrationService.RegisterAsync(
+        var result = await registrationService.StartAsync(
             request,
             ResolveClientIpAddress(),
             Request.Headers.UserAgent.ToString(),
             cancellationToken);
+
+        return result.ToActionResult();
+    }
+
+    /// <summary>Verifies the code and creates the account.</summary>
+    [HttpPost("complete")]
+    [EnableRateLimiting(RateLimitPolicies.Registration)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<RegistrationResponse>> CompleteAsync(
+        [FromBody] CompleteRegistrationRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await registrationService.CompleteAsync(request, cancellationToken);
+
+        return result.ToActionResult();
+    }
+
+    /// <summary>Issues a fresh code. Subject to SkaapHond's own cooldown.</summary>
+    [HttpPost("resend")]
+    [EnableRateLimiting(RateLimitPolicies.Registration)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<RegistrationStartedResponse>> ResendAsync(
+        [FromBody] ResendRegistrationCodeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await registrationService.ResendCodeAsync(request, cancellationToken);
 
         return result.ToActionResult();
     }
