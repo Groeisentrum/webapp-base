@@ -2,8 +2,8 @@
 -- VTM sample seed — EXAMPLE DATA, NOT PART OF THE TEMPLATE
 --
 -- Shows how a client deployment is populated. Everything here is data: categories,
--- languages, branding and menus are rows, never code. Copy this file, change the
--- values, and you have a new client.
+-- languages, branding, menus and points of interest are rows, never code. Copy this
+-- file, change the values, and you have a new client.
 --
 -- Run it AFTER the API has started at least once, so EF Core has created the schema:
 --
@@ -11,66 +11,100 @@
 --     < scripts/seed/vtm-sample.sql
 --
 -- Idempotent: re-running changes nothing that already exists.
+--
+-- COORDINATES: only the main monument below carries a surveyed coordinate
+-- (-25.776600, 28.175300). Every other pin is an approximation placed within the
+-- heritage site so the map and itinerary features have something real-shaped to
+-- draw. VTM must confirm them before this goes in front of visitors — each one is
+-- marked with a "TODO: confirm" note on the location row itself.
 -- ---------------------------------------------------------------------------
 
 SET @now = UTC_TIMESTAMP();
+SET @published = DATE_SUB(@now, INTERVAL 7 DAY);
 
 -- --- Tenant settings ---------------------------------------------------------
--- One row per deployment. Six languages here; a client may configure between two
--- and eleven. The default language must appear in the active list.
+-- One row per deployment. Afrikaans is the default and English is the only other
+-- language with content today. The language list is an open array, so adding the
+-- remaining official languages later is a settings change, not a release.
 INSERT INTO tenant_settings
     (SiteName, DefaultLanguageCode, ActiveLanguageCodes, FeatureFlags, Branding, ContactInfo,
-     IsDeleted, CreatedAt)
+     PrivacyPolicyVersion, TermsVersion, IsDeleted, CreatedAt)
 SELECT
-    'VTM',
+    'Voortrekkermonument',
     'af',
-    '["af","en","zu","xh","st","tn"]',
-    '{"flags":{"augmentedReality":true,"virtualTour":true,"nfc":true,"chatbot":true}}',
-    '{"primaryColour":"#1f5f4b","secondaryColour":"#2d7a63","accentColour":"#c8862a","headingFont":null,"bodyFont":null,"logoReference":null,"faviconReference":null}',
-    '{"emailAddress":"info@vtm.co.za","phoneNumber":"+27 12 000 0000","physicalAddress":null,"postalAddress":null}',
+    '["af","en"]',
+    '{"flags":{"augmentedReality":false,"virtualTour":false,"nfc":false}}',
+    '{"primaryColour":"#7b1f2b","secondaryColour":"#1f4e8c","accentColour":"#c8862a","headingFont":null,"bodyFont":null,"logoReference":null,"faviconReference":null}',
+    '{"emailAddress":"info@vtm.co.za","phoneNumber":"+27 12 326 6770","physicalAddress":"Eeufeesweg, Groenkloof, Pretoria","postalAddress":null,"socialLinks":{"facebook":"https://www.facebook.com/voortrekkermonument","instagram":"https://www.instagram.com/voortrekkermonument","youtube":"https://www.youtube.com/@voortrekkermonument"}}',
+    '1.0',
+    '1.0',
     0,
     @now
 WHERE NOT EXISTS (SELECT 1 FROM tenant_settings);
 
--- --- Top-level categories ----------------------------------------------------
-INSERT INTO categories (ParentCategoryId, Name, Slug, Colour, Icon, SortOrder, IsDeleted, CreatedAt)
+-- --- Top-level sections ------------------------------------------------------
+-- Tuis / Besoek / Beleef / Behoort. The four sections are rows, not a hardcoded
+-- list: which of them appear in which menu is decided by menu_items further down.
+INSERT INTO categories
+    (ParentCategoryId, Name, Slug, Colour, Icon, SortOrder, Visibility, VisibleToRoles, IsDeleted, CreatedAt)
 SELECT * FROM (
-    SELECT NULL AS p, 'Besoek' AS n, 'besoek' AS s, '#1f5f4b' AS c, NULL AS i, 1 AS o, 0 AS d, @now AS t
-    UNION ALL SELECT NULL, 'Beleef', 'beleef', '#2d7a63', NULL, 2, 0, @now
-    UNION ALL SELECT NULL, 'Leer',   'leer',   '#c8862a', NULL, 3, 0, @now
-    UNION ALL SELECT NULL, 'Winkel', 'winkel', '#8a6116', NULL, 4, 0, @now
+    SELECT NULL AS p, 'Tuis' AS n, 'tuis' AS s, '#7b1f2b' AS c, NULL AS i, 1 AS o, 0 AS v, '[]' AS r, 0 AS d, @now AS t
+    UNION ALL SELECT NULL, 'Besoek',  'besoek',  '#1f4e8c', NULL, 2, 0, '[]', 0, @now
+    UNION ALL SELECT NULL, 'Beleef',  'beleef',  '#2e7d32', NULL, 3, 0, '[]', 0, @now
+    UNION ALL SELECT NULL, 'Behoort', 'behoort', '#c8862a', NULL, 4, 0, '[]', 0, @now
+    UNION ALL SELECT NULL, 'Nuus',    'nuus',    '#6a3d9a', NULL, 5, 0, '[]', 0, @now
+    UNION ALL SELECT NULL, 'Gebeure', 'gebeure', '#d9731f', NULL, 6, 0, '[]', 0, @now
 ) AS seed
 WHERE NOT EXISTS (SELECT 1 FROM categories WHERE Slug = seed.s);
 
--- --- Child categories --------------------------------------------------------
-INSERT INTO categories (ParentCategoryId, Name, Slug, Colour, Icon, SortOrder, IsDeleted, CreatedAt)
-SELECT parent.Id, seed.n, seed.s, NULL, NULL, seed.o, 0, @now
+-- --- Map categories ----------------------------------------------------------
+-- The ten category/colour pairs the map legend draws. Children of Besoek, since a
+-- point of interest is somewhere you go.
+--
+-- "Alles" is the map's show-everything filter rather than a category a pin belongs
+-- to. It is seeded so the legend renders from the same source as the rest; no
+-- content is attached to it.
+INSERT INTO categories
+    (ParentCategoryId, Name, Slug, Colour, Icon, SortOrder, Visibility, VisibleToRoles, IsDeleted, CreatedAt)
+SELECT parent.Id, seed.n, seed.s, seed.c, NULL, seed.o, 0, '[]', 0, @now
 FROM (
-    SELECT 'besoek' AS parent_slug, 'Geleide toere'  AS n, 'geleide-toere'  AS s, 1 AS o
-    UNION ALL SELECT 'besoek', 'Selfie-plekke',  'selfie-plekke',  2
-    UNION ALL SELECT 'besoek', 'Geskiedenis',    'geskiedenis',    3
-    UNION ALL SELECT 'beleef', 'Virtuele toer',  'virtuele-toer',  1
-    UNION ALL SELECT 'beleef', 'Geleenthede',    'geleenthede',    2
-    UNION ALL SELECT 'leer',   'Skoolgroepe',    'skoolgroepe',    1
+    SELECT 'Alles' AS n, 'alles' AS s, '#1f4e8c' AS c, 1 AS o
+    UNION ALL SELECT 'Geskiedenis',                 'geskiedenis',                 '#7b1f2b', 2
+    UNION ALL SELECT 'Kinders',                     'kinders',                     '#e8b923', 3
+    UNION ALL SELECT 'Eet en ontspan',              'eet-en-ontspan',              '#d9731f', 4
+    UNION ALL SELECT 'Sport en leefstyl',           'sport-en-leefstyl',           '#2e7d32', 5
+    UNION ALL SELECT 'Fasiliteite',                 'fasiliteite',                 '#17a2a2', 6
+    UNION ALL SELECT 'Ontvangs en inligting',       'ontvangs-en-inligting',       '#c62828', 7
+    UNION ALL SELECT 'Parkering en toeganklikheid', 'parkering-en-toeganklikheid', '#222222', 8
+    UNION ALL SELECT 'Badkamers',                   'badkamers',                   '#6a3d9a', 9
+    UNION ALL SELECT 'Uitkykpunte',                 'uitkykpunte',                 '#f5f5f5', 10
 ) AS seed
-JOIN categories AS parent ON parent.Slug = seed.parent_slug
+JOIN categories AS parent ON parent.Slug = 'besoek'
 WHERE NOT EXISTS (SELECT 1 FROM categories WHERE Slug = seed.s);
 
 -- --- Category translations ---------------------------------------------------
--- Only the non-default languages need rows; Afrikaans lives on the category itself
--- and is what an untranslated field falls back to.
+-- Only non-default languages need rows; Afrikaans lives on the category itself and
+-- is what an untranslated field falls back to.
 INSERT INTO translations
     (EntityType, EntityId, FieldName, LanguageCode, Value, IsDeleted, CreatedAt)
-SELECT 'Category', category.Id, 'Name', seed.lang, seed.value, 0, @now
+SELECT 'Category', category.Id, 'Name', 'en', seed.value, 0, @now
 FROM (
-    SELECT 'besoek' AS slug, 'en' AS lang, 'Visit'      AS value
-    UNION ALL SELECT 'besoek', 'zu', 'Vakashela'
-    UNION ALL SELECT 'beleef', 'en', 'Experience'
-    UNION ALL SELECT 'beleef', 'zu', 'Hlangenwe nakho'
-    UNION ALL SELECT 'leer',   'en', 'Learn'
-    UNION ALL SELECT 'leer',   'zu', 'Funda'
-    UNION ALL SELECT 'winkel', 'en', 'Shop'
-    UNION ALL SELECT 'winkel', 'zu', 'Isitolo'
+    SELECT 'tuis' AS slug, 'Home' AS value
+    UNION ALL SELECT 'besoek',                      'Visit'
+    UNION ALL SELECT 'beleef',                      'Experience'
+    UNION ALL SELECT 'behoort',                     'Belong'
+    UNION ALL SELECT 'nuus',                        'News'
+    UNION ALL SELECT 'gebeure',                     'Events'
+    UNION ALL SELECT 'alles',                       'All'
+    UNION ALL SELECT 'geskiedenis',                 'History'
+    UNION ALL SELECT 'kinders',                     'Children'
+    UNION ALL SELECT 'eet-en-ontspan',              'Eat and relax'
+    UNION ALL SELECT 'sport-en-leefstyl',           'Sport and lifestyle'
+    UNION ALL SELECT 'fasiliteite',                 'Facilities'
+    UNION ALL SELECT 'ontvangs-en-inligting',       'Reception and information'
+    UNION ALL SELECT 'parkering-en-toeganklikheid', 'Parking and accessibility'
+    UNION ALL SELECT 'badkamers',                   'Bathrooms'
+    UNION ALL SELECT 'uitkykpunte',                 'Viewpoints'
 ) AS seed
 JOIN categories AS category ON category.Slug = seed.slug
 WHERE NOT EXISTS (
@@ -78,59 +112,227 @@ WHERE NOT EXISTS (
     WHERE existing.EntityType = 'Category'
       AND existing.EntityId = category.Id
       AND existing.FieldName = 'Name'
-      AND existing.LanguageCode = seed.lang
+      AND existing.LanguageCode = 'en'
 );
 
--- --- Sample content ----------------------------------------------------------
--- AssetType: 1 = YouTube, 4 = ExternalLink.
--- Note the third row: its event is in the past but its publish window is open, so
--- it stays visible. The two windows are independent by design.
+-- --- Points of interest: content ---------------------------------------------
+-- A point of interest is a content item that happens to have coordinates. It
+-- carries the name, description, photo and category; the location row carries only
+-- geometry and the future-linkage ids. AssetType 5 = Image.
 INSERT INTO content_items
     (CategoryId, AssetType, AssetReference, Title, Description, Body,
-     PublishedAt, UnpublishedAt, EventStart, EventEnd, Recurrence, IsDeleted, CreatedAt)
+     PublishedAt, UnpublishedAt, EventStart, EventEnd, Recurrence,
+     Visibility, VisibleToRoles, IsDeleted, CreatedAt)
 SELECT
-    category.Id, seed.asset_type, seed.asset_ref, seed.title, seed.description, NULL,
-    seed.published_at, NULL, seed.event_start, seed.event_end, seed.recurrence, 0, @now
+    category.Id, 5, seed.asset_ref, seed.title, seed.description, NULL,
+    @published, NULL, NULL, NULL, '{"frequency":0,"dayOfWeek":null,"weekOfMonth":null}',
+    0, '[]', 0, @now
 FROM (
-    SELECT 'geleide-toere' AS slug, 1 AS asset_type, 'dQw4w9WgXcQ' AS asset_ref,
-           'Welkom by VTM' AS title, 'n Kort video-oorsig van die terrein.' AS description,
-           DATE_SUB(@now, INTERVAL 7 DAY) AS published_at,
-           NULL AS event_start, NULL AS event_end,
-           '{"frequency":0,"dayOfWeek":null,"weekOfMonth":null}' AS recurrence
-    UNION ALL SELECT 'virtuele-toer', 4, 'https://voorbeeld.co.za/virtuele-toer',
-           'Virtuele toer', 'Stap deur die terrein van waar jy ook al is.',
-           DATE_SUB(@now, INTERVAL 3 DAY), NULL, NULL,
-           '{"frequency":0,"dayOfWeek":null,"weekOfMonth":null}'
-    UNION ALL SELECT 'geleenthede', 0, NULL,
-           'Maandelikse boeremark', 'Elke eerste Saterdag van die maand.',
-           DATE_SUB(@now, INTERVAL 30 DAY),
-           DATE_SUB(@now, INTERVAL 5 DAY), DATE_SUB(@now, INTERVAL 5 DAY),
-           '{"frequency":2,"dayOfWeek":6,"weekOfMonth":1}'
+    SELECT 'geskiedenis' AS slug, 'vtm/hoofmonument.jpg' AS asset_ref,
+           'Voortrekkermonument' AS title,
+           'Die hoofmonument met sy Heldesaal, sarkofaag en historiese fries.' AS description
+    UNION ALL SELECT 'geskiedenis', 'vtm/museumteater.jpg',
+           'Museumteater',
+           'Vertonings en vertellings oor die Groot Trek, binne die monumentkompleks.'
+    UNION ALL SELECT 'kinders', 'vtm/pioniersentrum.jpg',
+           'Pioniersentrum',
+           'Interaktiewe leerruimte waar kinders die pionierslewe self beleef.'
+    UNION ALL SELECT 'geskiedenis', 'vtm/plaaswerf.jpg',
+           'Plaaswerf en Grensplaas',
+           'Herboude grensplaas met werf, kraal en gereedskap uit die tydperk.'
+    UNION ALL SELECT 'ontvangs-en-inligting', 'vtm/ontvangs.jpg',
+           'Ontvangs en kaartjiekantoor',
+           'Kaartjies, inligting en die vertrekpunt vir geleide toere.'
+    UNION ALL SELECT 'eet-en-ontspan', 'vtm/restaurant.jpg',
+           'Restaurant en koffiewinkel',
+           'Ligte etes en koffie met uitsig oor die terrein.'
+    UNION ALL SELECT 'uitkykpunte', 'vtm/uitkykdek.jpg',
+           'Uitkykdek',
+           'Die boonste dek van die monument, met uitsig oor Pretoria.'
+    UNION ALL SELECT 'parkering-en-toeganklikheid', 'vtm/parkering.jpg',
+           'Hoofparkering',
+           'Besoekersparkering met aangewese plekke vir besoekers met gestremdhede.'
+    UNION ALL SELECT 'badkamers', 'vtm/badkamers.jpg',
+           'Badkamers by ontvangs',
+           'Openbare badkamers, insluitend een toeganklike badkamer.'
+    UNION ALL SELECT 'fasiliteite', 'vtm/piekniek.jpg',
+           'Piekniekterrein',
+           'Skaduryke piekniekplekke en braaigeriewe in die natuurreservaat.'
+    UNION ALL SELECT 'sport-en-leefstyl', 'vtm/wandelroete.jpg',
+           'Wandelroetes',
+           'Roetes deur die natuurreservaat rondom die monument.'
 ) AS seed
 JOIN categories AS category ON category.Slug = seed.slug
 WHERE NOT EXISTS (SELECT 1 FROM content_items WHERE Title = seed.title);
 
+-- --- Points of interest: English ---------------------------------------------
+INSERT INTO translations
+    (EntityType, EntityId, FieldName, LanguageCode, Value, IsDeleted, CreatedAt)
+SELECT 'Content', content.Id, seed.field, 'en', seed.value, 0, @now
+FROM (
+    SELECT 'Voortrekkermonument' AS title, 'Title' AS field, 'Voortrekker Monument' AS value
+    UNION ALL SELECT 'Voortrekkermonument', 'Description', 'The main monument with its Hall of Heroes, cenotaph and historical frieze.'
+    UNION ALL SELECT 'Museumteater', 'Title', 'Museum Theatre'
+    UNION ALL SELECT 'Museumteater', 'Description', 'Screenings and storytelling about the Great Trek, inside the monument complex.'
+    UNION ALL SELECT 'Pioniersentrum', 'Title', 'Pioneer Centre'
+    UNION ALL SELECT 'Pioniersentrum', 'Description', 'An interactive space where children experience pioneer life first-hand.'
+    UNION ALL SELECT 'Plaaswerf en Grensplaas', 'Title', 'Farmyard and Frontier Farm'
+    UNION ALL SELECT 'Plaaswerf en Grensplaas', 'Description', 'A rebuilt frontier farm with yard, kraal and period implements.'
+    UNION ALL SELECT 'Ontvangs en kaartjiekantoor', 'Title', 'Reception and ticket office'
+    UNION ALL SELECT 'Ontvangs en kaartjiekantoor', 'Description', 'Tickets, information and the starting point for guided tours.'
+    UNION ALL SELECT 'Restaurant en koffiewinkel', 'Title', 'Restaurant and coffee shop'
+    UNION ALL SELECT 'Restaurant en koffiewinkel', 'Description', 'Light meals and coffee overlooking the grounds.'
+    UNION ALL SELECT 'Uitkykdek', 'Title', 'Viewing deck'
+    UNION ALL SELECT 'Uitkykdek', 'Description', 'The monument roof deck, looking out over Pretoria.'
+    UNION ALL SELECT 'Hoofparkering', 'Title', 'Main parking'
+    UNION ALL SELECT 'Hoofparkering', 'Description', 'Visitor parking including designated accessible bays.'
+    UNION ALL SELECT 'Badkamers by ontvangs', 'Title', 'Bathrooms at reception'
+    UNION ALL SELECT 'Badkamers by ontvangs', 'Description', 'Public bathrooms, including an accessible bathroom.'
+    UNION ALL SELECT 'Piekniekterrein', 'Title', 'Picnic area'
+    UNION ALL SELECT 'Piekniekterrein', 'Description', 'Shaded picnic spots and braai facilities in the nature reserve.'
+    UNION ALL SELECT 'Wandelroetes', 'Title', 'Walking trails'
+    UNION ALL SELECT 'Wandelroetes', 'Description', 'Trails through the nature reserve surrounding the monument.'
+) AS seed
+JOIN content_items AS content ON content.Title = seed.title
+WHERE NOT EXISTS (
+    SELECT 1 FROM translations AS existing
+    WHERE existing.EntityType = 'Content'
+      AND existing.EntityId = content.Id
+      AND existing.FieldName = seed.field
+      AND existing.LanguageCode = 'en'
+);
+
+-- --- Points of interest: geometry --------------------------------------------
+-- TourStopId, ArAnchorId and NfcTagId stay null: the tour, AR and NFC tables do not
+-- exist yet. The columns are here so those features attach to an existing pin later
+-- instead of migrating a table the map is already reading.
+INSERT INTO location_details
+    (ContentId, Latitude, Longitude, Label, AddressLine, Notes,
+     TourStopId, ArAnchorId, NfcTagId, IsDeleted, CreatedAt)
+SELECT content.Id, seed.lat, seed.lng, NULL, NULL, seed.notes, NULL, NULL, NULL, 0, @now
+FROM (
+    SELECT 'Voortrekkermonument' AS title, -25.776600 AS lat, 28.175300 AS lng,
+           'Surveyed coordinate.' AS notes
+    UNION ALL SELECT 'Museumteater',                -25.776100, 28.175800, 'TODO: confirm with VTM - approximate.'
+    UNION ALL SELECT 'Pioniersentrum',              -25.777400, 28.176400, 'TODO: confirm with VTM - approximate.'
+    UNION ALL SELECT 'Plaaswerf en Grensplaas',     -25.778900, 28.173600, 'TODO: confirm with VTM - approximate.'
+    UNION ALL SELECT 'Ontvangs en kaartjiekantoor', -25.775800, 28.176700, 'TODO: confirm with VTM - approximate.'
+    UNION ALL SELECT 'Restaurant en koffiewinkel',  -25.775500, 28.176200, 'TODO: confirm with VTM - approximate.'
+    UNION ALL SELECT 'Uitkykdek',                   -25.776600, 28.175300, 'Same footprint as the monument; confirm the pin offset with VTM.'
+    UNION ALL SELECT 'Hoofparkering',               -25.774900, 28.177300, 'TODO: confirm with VTM - approximate.'
+    UNION ALL SELECT 'Badkamers by ontvangs',       -25.775700, 28.176900, 'TODO: confirm with VTM - approximate.'
+    UNION ALL SELECT 'Piekniekterrein',             -25.779600, 28.178100, 'TODO: confirm with VTM - approximate.'
+    UNION ALL SELECT 'Wandelroetes',                -25.780400, 28.172900, 'Trailhead. TODO: confirm with VTM - approximate.'
+) AS seed
+JOIN content_items AS content ON content.Title = seed.title
+WHERE NOT EXISTS (SELECT 1 FROM location_details WHERE ContentId = content.Id);
+
 -- --- Menus -------------------------------------------------------------------
--- MenuType: 1 = Top, 3 = Footer. LinkType: 1 = Category, 2 = StaticPage.
+-- MenuType: 1 = Top, 2 = BottomHover, 3 = Footer. LinkType: 1 = Category, 2 = StaticPage.
+--
+-- Sign-in, the language switcher and the social icons are site chrome rather than
+-- menu rows: they render from tenant settings and session state, so an administrator
+-- cannot accidentally delete the way back into the site.
+
+-- Top menu: news and events.
 INSERT INTO menu_items
     (MenuType, LinkType, Label, CategoryId, StaticPageSlug, ExternalUrl,
-     ParentMenuItemId, SortOrder, IsDeleted, CreatedAt)
-SELECT 1, 1, category.Name, category.Id, NULL, NULL, NULL, category.SortOrder, 0, @now
+     ParentMenuItemId, SortOrder, Visibility, VisibleToRoles, IsDeleted, CreatedAt)
+SELECT 1, 1, category.Name, category.Id, NULL, NULL, NULL, seed.o, 0, '[]', 0, @now
+FROM (
+    SELECT 'nuus' AS slug, 1 AS o
+    UNION ALL SELECT 'gebeure', 2
+) AS seed
+JOIN categories AS category ON category.Slug = seed.slug
+WHERE NOT EXISTS (
+    SELECT 1 FROM menu_items
+    WHERE MenuType = 1 AND LinkType = 1 AND CategoryId = category.Id
+);
+
+-- Bottom hover menu: the four sections.
+INSERT INTO menu_items
+    (MenuType, LinkType, Label, CategoryId, StaticPageSlug, ExternalUrl,
+     ParentMenuItemId, SortOrder, Visibility, VisibleToRoles, IsDeleted, CreatedAt)
+SELECT 2, 1, category.Name, category.Id, NULL, NULL, NULL, seed.o, 0, '[]', 0, @now
+FROM (
+    SELECT 'tuis' AS slug, 1 AS o
+    UNION ALL SELECT 'besoek',  2
+    UNION ALL SELECT 'beleef',  3
+    UNION ALL SELECT 'behoort', 4
+) AS seed
+JOIN categories AS category ON category.Slug = seed.slug
+WHERE NOT EXISTS (
+    SELECT 1 FROM menu_items
+    WHERE MenuType = 2 AND LinkType = 1 AND CategoryId = category.Id
+);
+
+-- Bottom hover submenus: the map categories hang under Besoek.
+INSERT INTO menu_items
+    (MenuType, LinkType, Label, CategoryId, StaticPageSlug, ExternalUrl,
+     ParentMenuItemId, SortOrder, Visibility, VisibleToRoles, IsDeleted, CreatedAt)
+SELECT 2, 1, category.Name, category.Id, NULL, NULL, parent_item.Id, category.SortOrder, 0, '[]', 0, @now
+FROM categories AS category
+JOIN categories AS parent_category ON parent_category.Slug = 'besoek'
+JOIN menu_items AS parent_item
+  ON parent_item.MenuType = 2 AND parent_item.CategoryId = parent_category.Id
+WHERE category.ParentCategoryId = parent_category.Id
+  AND category.Slug <> 'alles'
+  AND NOT EXISTS (
+      SELECT 1 FROM menu_items AS existing
+      WHERE existing.MenuType = 2 AND existing.LinkType = 1 AND existing.CategoryId = category.Id
+  );
+
+-- Footer sitemap: every section, plus the two legal pages.
+INSERT INTO menu_items
+    (MenuType, LinkType, Label, CategoryId, StaticPageSlug, ExternalUrl,
+     ParentMenuItemId, SortOrder, Visibility, VisibleToRoles, IsDeleted, CreatedAt)
+SELECT 3, 1, category.Name, category.Id, NULL, NULL, NULL, category.SortOrder, 0, '[]', 0, @now
 FROM categories AS category
 WHERE category.ParentCategoryId IS NULL
   AND NOT EXISTS (
       SELECT 1 FROM menu_items
-      WHERE MenuType = 1 AND LinkType = 1 AND CategoryId = category.Id
+      WHERE MenuType = 3 AND LinkType = 1 AND CategoryId = category.Id
   );
 
 INSERT INTO menu_items
     (MenuType, LinkType, Label, CategoryId, StaticPageSlug, ExternalUrl,
-     ParentMenuItemId, SortOrder, IsDeleted, CreatedAt)
-SELECT 3, 2, seed.label, NULL, seed.slug, NULL, NULL, seed.o, 0, @now
+     ParentMenuItemId, SortOrder, Visibility, VisibleToRoles, IsDeleted, CreatedAt)
+SELECT 3, 2, seed.label, NULL, seed.slug, NULL, NULL, seed.o, 0, '[]', 0, @now
 FROM (
-    SELECT 'Privaatheidsbeleid' AS label, 'privaatheid' AS slug, 1 AS o
-    UNION ALL SELECT 'Bepalings en voorwaardes', 'bepalings', 2
+    SELECT 'Privaatheidsbeleid' AS label, 'privaatheid' AS slug, 90 AS o
+    UNION ALL SELECT 'Bepalings en voorwaardes', 'bepalings', 91
 ) AS seed
 WHERE NOT EXISTS (
     SELECT 1 FROM menu_items WHERE MenuType = 3 AND StaticPageSlug = seed.slug
+);
+
+-- --- Menu translations -------------------------------------------------------
+INSERT INTO translations
+    (EntityType, EntityId, FieldName, LanguageCode, Value, IsDeleted, CreatedAt)
+SELECT 'MenuItem', menu_item.Id, 'Label', 'en', category_name.value, 0, @now
+FROM menu_items AS menu_item
+JOIN categories AS category ON category.Id = menu_item.CategoryId
+JOIN (
+    SELECT 'tuis' AS slug, 'Home' AS value
+    UNION ALL SELECT 'besoek',                      'Visit'
+    UNION ALL SELECT 'beleef',                      'Experience'
+    UNION ALL SELECT 'behoort',                     'Belong'
+    UNION ALL SELECT 'nuus',                        'News'
+    UNION ALL SELECT 'gebeure',                     'Events'
+    UNION ALL SELECT 'geskiedenis',                 'History'
+    UNION ALL SELECT 'kinders',                     'Children'
+    UNION ALL SELECT 'eet-en-ontspan',              'Eat and relax'
+    UNION ALL SELECT 'sport-en-leefstyl',           'Sport and lifestyle'
+    UNION ALL SELECT 'fasiliteite',                 'Facilities'
+    UNION ALL SELECT 'ontvangs-en-inligting',       'Reception and information'
+    UNION ALL SELECT 'parkering-en-toeganklikheid', 'Parking and accessibility'
+    UNION ALL SELECT 'badkamers',                   'Bathrooms'
+    UNION ALL SELECT 'uitkykpunte',                 'Viewpoints'
+) AS category_name ON category_name.slug = category.Slug
+WHERE NOT EXISTS (
+    SELECT 1 FROM translations AS existing
+    WHERE existing.EntityType = 'MenuItem'
+      AND existing.EntityId = menu_item.Id
+      AND existing.FieldName = 'Label'
+      AND existing.LanguageCode = 'en'
 );

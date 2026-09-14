@@ -30,4 +30,5 @@ public sealed record ContactInfoResponse(
     string? EmailAddress,
     string? PhoneNumber,
     string? PhysicalAddress,
-    string? PostalAddress);
+    string? PostalAddress,
+    IReadOnlyDictionary<string, string> SocialLinks);

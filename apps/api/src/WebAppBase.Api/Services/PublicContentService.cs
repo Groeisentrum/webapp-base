@@ -213,6 +213,72 @@ public sealed class PublicContentService(
         return Result<IReadOnlyList<MenuItemResponse>>.Success(items);
     }
 
+    /// <summary>
+    /// Every published point of interest the viewer may see, flattened for map and
+    /// itinerary consumers.
+    /// </summary>
+    /// <remarks>
+    /// Shares the visibility and translation rules used by the rest of this service
+    /// rather than reimplementing them, so a restricted category hides its pins from
+    /// the map exactly as it hides its pages — pins carry coordinates, and a hidden
+    /// location leaking onto a map is a physical disclosure, not just an editorial one.
+    /// </remarks>
+    public async Task<Result<IReadOnlyList<PublicLocationResponse>>> GetLocationsAsync(
+        long? categoryId,
+        string? languageCode,
+        CancellationToken cancellationToken)
+    {
+        var languageResult = await ResolveLanguageAsync(languageCode, cancellationToken);
+        if (languageResult.IsFailure)
+        {
+            return Result<IReadOnlyList<PublicLocationResponse>>.Failure(languageResult.Error!);
+        }
+
+        var viewer = viewerContext.Current;
+        var categories = await categoryRepository.GetAllAsync(cancellationToken);
+        var visibleCategoryIds = ResolveVisibleCategoryIds(categories, viewer);
+
+        // A requested category the viewer may not see yields nothing rather than an
+        // error, so the response cannot confirm that a hidden section exists.
+        if (categoryId is not null && !visibleCategoryIds.Contains(categoryId.Value))
+        {
+            return Result<IReadOnlyList<PublicLocationResponse>>.Success([]);
+        }
+
+        var locations = await locationDetailRepository.GetPublishedWithContentAsync(
+            clock.UtcNow,
+            categoryId,
+            cancellationToken);
+
+        var visibleLocations = locations
+            .Where(location => location.Content is not null
+                && location.Content.Category is not null
+                && visibleCategoryIds.Contains(location.Content.CategoryId)
+                && VisibilityRules.AllowsDirectly(
+                    location.Content.Visibility,
+                    location.Content.VisibleToRoles,
+                    viewer))
+            .ToList();
+
+        var contentTranslations = await translationRepository.GetForEntitiesAsync(
+            EntityTypeNames.Content,
+            [.. visibleLocations.Select(location => location.ContentId).Distinct()],
+            languageResult.Value,
+            cancellationToken);
+
+        var categoryTranslations = await translationRepository.GetForEntitiesAsync(
+            EntityTypeNames.Category,
+            [.. visibleLocations.Select(location => location.Content!.CategoryId).Distinct()],
+            languageResult.Value,
+            cancellationToken);
+
+        var contentLookup = BuildTranslationLookup(contentTranslations);
+        var categoryLookup = BuildTranslationLookup(categoryTranslations);
+
+        return Result<IReadOnlyList<PublicLocationResponse>>.Success(
+            [.. visibleLocations.Select(location => MapPublicLocation(location, contentLookup, categoryLookup))]);
+    }
+
     private static Result<TValue> NotFound<TValue>() => Result<TValue>.Failure(Error.NotFound(
         ErrorCodes.ContentNotFound,
         "Die inhoud kon nie gevind word nie."));
@@ -423,5 +489,45 @@ public sealed class PublicContentService(
         location.Longitude,
         location.Label,
         location.AddressLine,
-        location.Notes);
+        location.Notes,
+        location.TourStopId,
+        location.ArAnchorId,
+        location.NfcTagId);
+
+    /// <summary>
+    /// Flattens a pin and its owning content and category into the public contract.
+    /// A pin's own label wins over the content title when set, since a map needs a
+    /// shorter name than a page heading.
+    /// </summary>
+    private static PublicLocationResponse MapPublicLocation(
+        LocationDetail location,
+        Dictionary<(long EntityId, string FieldName), string> contentLookup,
+        Dictionary<(long EntityId, string FieldName), string> categoryLookup)
+    {
+        var content = location.Content!;
+        var category = content.Category!;
+
+        var translatedTitle = Translated(
+            contentLookup,
+            content.Id,
+            TranslatableFieldNames.Title,
+            content.Title);
+
+        return new PublicLocationResponse(
+            location.Id,
+            content.Id,
+            string.IsNullOrWhiteSpace(location.Label) ? translatedTitle : location.Label,
+            TranslatedOrNull(contentLookup, content.Id, TranslatableFieldNames.Description, content.Description),
+            category.Id,
+            Translated(categoryLookup, category.Id, TranslatableFieldNames.Name, category.Name),
+            category.Slug,
+            category.Colour,
+            content.AssetReference,
+            location.Latitude,
+            location.Longitude,
+            location.AddressLine,
+            location.TourStopId,
+            location.ArAnchorId,
+            location.NfcTagId);
+    }
 }

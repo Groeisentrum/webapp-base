@@ -138,7 +138,10 @@ public sealed class TenantSettingsService(
         EmailAddress = request.EmailAddress,
         PhoneNumber = request.PhoneNumber,
         PhysicalAddress = request.PhysicalAddress,
-        PostalAddress = request.PostalAddress
+        PostalAddress = request.PostalAddress,
+        SocialLinks = request.SocialLinks is null
+            ? new Dictionary<string, string>()
+            : new Dictionary<string, string>(request.SocialLinks)
     };
 
     private static TenantSettingsResponse MapResponse(TenantSettings settings) => new(
@@ -176,5 +179,6 @@ public sealed class TenantSettingsService(
         contactInfo.EmailAddress,
         contactInfo.PhoneNumber,
         contactInfo.PhysicalAddress,
-        contactInfo.PostalAddress);
+        contactInfo.PostalAddress,
+        contactInfo.SocialLinks);
 }

@@ -47,6 +47,9 @@ public sealed class LocationDetailService(
             Label = request.Label,
             AddressLine = request.AddressLine,
             Notes = request.Notes,
+            TourStopId = request.TourStopId,
+            ArAnchorId = request.ArAnchorId,
+            NfcTagId = request.NfcTagId,
             CreatedAt = clock.UtcNow
         };
 
@@ -83,6 +86,9 @@ public sealed class LocationDetailService(
         location.Label = request.Label;
         location.AddressLine = request.AddressLine;
         location.Notes = request.Notes;
+        location.TourStopId = request.TourStopId;
+        location.ArAnchorId = request.ArAnchorId;
+        location.NfcTagId = request.NfcTagId;
         location.UpdatedAt = clock.UtcNow;
 
         auditService.Record(
@@ -128,5 +134,8 @@ public sealed class LocationDetailService(
         location.Longitude,
         location.Label,
         location.AddressLine,
-        location.Notes);
+        location.Notes,
+        location.TourStopId,
+        location.ArAnchorId,
+        location.NfcTagId);
 }

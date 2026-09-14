@@ -36,6 +36,14 @@ WolkPoort when it needs another service's data. Do not add it to the function re
   record, never from the request — otherwise a caller could verify one address and
   register another. Needs `OtpPurposes.Registration` admitted to SkaapHond's
   contact-bound path; until then it fails closed. See `docs/DEPLOYMENT.md`.
+- **`GET /api/public/locations` is a published contract** with two independent
+  consumers (the map and the itinerary features). Add fields freely; renaming or
+  removing one breaks both at once, so coordinate first. Never let a consumer fork its
+  own copy of the shape, and never let one reimplement the visibility filtering — the
+  feed is already filtered for the caller. See `docs/LOCATIONS-CONTRACT.md`.
+- A point of interest is a content item that has coordinates. Name, description, photo
+  and category live on `Content`; `LocationDetail` holds geometry and the reserved
+  linkage ids only. Do not duplicate content fields onto the location row.
 - Never call `fetch` directly in components — use the typed services in
   `src/shared/services/`.
 - Never hardcode colours — use the semantic tokens in `globals.css`.

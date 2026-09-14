@@ -99,6 +99,9 @@ export type ContactInfo = {
   phoneNumber: string | null;
   physicalAddress: string | null;
   postalAddress: string | null;
+  /** Platform key to profile URL, e.g. `{ facebook: "https://..." }`. Open by design:
+   *  a deployment adds a platform by configuring it, not by a release. */
+  socialLinks: Record<string, string>;
 };
 
 export type TenantSettings = {
@@ -183,6 +186,42 @@ export type LocationDetail = {
   label: string | null;
   addressLine: string | null;
   notes: string | null;
+  /** Null until tours, AR anchors and NFC tags exist. Reserved so they can attach
+   *  to an existing pin rather than forcing a schema change on it. */
+  tourStopId: number | null;
+  arAnchorId: number | null;
+  nfcTagId: number | null;
+};
+
+/**
+ * A point of interest, as `GET /api/public/locations` returns it.
+ *
+ * Published contract — the map and itinerary features both read this shape. Fields
+ * may be added; renaming or removing one breaks both consumers at once.
+ *
+ * `name`, `shortDescription` and `categoryName` arrive already resolved into the
+ * requested language, falling back to the site's default language when a translation
+ * is missing. `photoReference` is interpreted according to the site's configured
+ * asset source, so it may be a YouTube id, an S3 key or a URL — resolve it through
+ * the same helper the content cards use rather than assuming it is a URL.
+ */
+export type PublicLocation = {
+  id: number;
+  contentId: number;
+  name: string;
+  shortDescription: string | null;
+  categoryId: number;
+  categoryName: string;
+  categorySlug: string;
+  /** Hex colour for the pin, from the category. Null when the category sets none. */
+  categoryColour: string | null;
+  photoReference: string | null;
+  latitude: number;
+  longitude: number;
+  addressLine: string | null;
+  tourStopId: number | null;
+  arAnchorId: number | null;
+  nfcTagId: number | null;
 };
 
 export type PublicContent = {

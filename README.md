@@ -3,6 +3,14 @@
 A reusable web application template. Each client gets its own deployment — webhost,
 API and database together on a single EC2 instance — built from this one codebase.
 
+> ### Building the map or the itinerary wizard? Start here.
+>
+> Both features read one shared endpoint, `GET /api/public/locations`. The shape, the
+> filtering rules and the seeded VTM points of interest are documented in
+> **[docs/LOCATIONS-CONTRACT.md](docs/LOCATIONS-CONTRACT.md)**. Read it before you
+> model anything — you are both building against the same rows, and the coordinates
+> in the seed are approximate on purpose.
+
 ## What this is, and what it is not
 
 **It is** a standalone application that authenticates against SkaapHond and owns its
@@ -26,6 +34,9 @@ how a lego block works.
 | Auth | SkaapHond JWT in httpOnly cookies |
 
 ## Quick start
+
+The whole stack runs in Docker: nginx terminating TLS in front of the Next.js webhost,
+the .NET API, and MariaDB. Only nginx publishes a port.
 
 ```bash
 cp .env.example .env
@@ -101,6 +112,30 @@ inside it, and an item's own setting can only narrow access, never widen it. And
 omitted from the menu, because URLs on this template travel via NFC tags and QR codes.
 Hidden items report 404 rather than 403, so a direct URL cannot confirm they exist.
 
+## Navigation
+
+Three surfaces, all rows in `menu_items`, all filtered by the API for whoever is asking:
+
+| Surface | `MenuType` | What VTM puts there |
+|---|---|---|
+| Top bar | `Top` | Nuus, Gebeure |
+| Main bar | `BottomHover` | Tuis, Besoek, Beleef, Behoort — with submenus on hover or tap |
+| Footer | `Footer` | Sitemap of every section, plus the two legal pages |
+
+The main bar has the Louvre docking behaviour: it sits in flow below the hero and
+scrolls away with the content, and the moment its bottom edge passes the top of the
+viewport it docks to the bottom of the screen and stays there. Scrolling back up
+releases it. The space it occupies is reserved either way, so docking never reflows
+the page.
+
+Sign-in, the language switcher and the social icons are chrome rather than menu rows.
+They render from tenant settings and session state, so an administrator editing menus
+cannot accidentally delete the way back into the site. Social platforms are an open
+key/value map on `ContactInfo` — a deployment adds one by configuring it.
+
+The language switcher is one compact dropdown at every breakpoint. A deployment may
+run up to eleven languages, and eleven inline links fit no header at all.
+
 ## Registration
 
 Visitors can register themselves and receive the `Client` role. Off by default —
@@ -164,5 +199,6 @@ Both must pass before a change is considered done.
 
 ## Further reading
 
+- [docs/LOCATIONS-CONTRACT.md](docs/LOCATIONS-CONTRACT.md) — the points-of-interest feed, for the map and itinerary teams
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — data model, auth flow, request paths
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — standing up a new client deployment

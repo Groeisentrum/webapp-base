@@ -4,6 +4,7 @@ import type {
   MenuType,
   Paged,
   PublicContent,
+  PublicLocation,
   PublicSiteConfig,
 } from "@/shared/interfaces/Domain";
 import { getLocalApiBaseUrl } from "@/app/api/utils/serviceUrls";
@@ -83,4 +84,25 @@ export async function getPublicMenuItems(
   const query = params.toString();
 
   return getJson<MenuItem[]>(`/menu-items${query ? `?${query}` : ""}`);
+}
+
+/**
+ * Every published point of interest the caller may see.
+ *
+ * The single source for map pins and itinerary stops — both features read this rather
+ * than keeping their own copy, so a pin that is renamed, hidden or unpublished changes
+ * for both at once. Pass `categoryId` to draw one section of the site only.
+ */
+export async function getPublicLocations(options: {
+  categoryId?: number;
+  language?: string;
+} = {}): Promise<PublicLocation[]> {
+  const params = new URLSearchParams();
+
+  if (options.categoryId !== undefined) params.set("categoryId", String(options.categoryId));
+  if (options.language) params.set("language", options.language);
+
+  const query = params.toString();
+
+  return getJson<PublicLocation[]>(`/locations${query ? `?${query}` : ""}`);
 }

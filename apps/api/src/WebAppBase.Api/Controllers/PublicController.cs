@@ -92,4 +92,26 @@ public sealed class PublicController(
 
         return result.ToActionResult();
     }
+
+    /// <summary>
+    /// Published points of interest, with name, description and category resolved
+    /// into the requested language.
+    /// </summary>
+    /// <remarks>
+    /// The shared feed behind the map and itinerary features. It is deliberately one
+    /// endpoint rather than one per consumer: a pin that is hidden, unpublished or
+    /// renamed has to change for everyone at once.
+    /// </remarks>
+    [HttpGet("locations")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<IReadOnlyList<PublicLocationResponse>>> GetLocationsAsync(
+        [FromQuery] long? categoryId,
+        [FromQuery] string? language,
+        CancellationToken cancellationToken)
+    {
+        var result = await publicContentService.GetLocationsAsync(categoryId, language, cancellationToken);
+
+        return result.ToActionResult();
+    }
 }

@@ -24,6 +24,15 @@ public sealed class CreateLocationDetailRequest
 
     [MaxLength(2000)]
     public string? Notes { get; set; }
+
+    /// <summary>Optional link to a tour stop; stays null until tours exist.</summary>
+    public long? TourStopId { get; set; }
+
+    /// <summary>Optional link to an AR anchor; stays null until AR exists.</summary>
+    public long? ArAnchorId { get; set; }
+
+    /// <summary>Optional link to an NFC tag; stays null until tags are placed.</summary>
+    public long? NfcTagId { get; set; }
 }
 
 /// <summary>
@@ -45,4 +54,10 @@ public sealed class UpdateLocationDetailRequest
 
     [MaxLength(2000)]
     public string? Notes { get; set; }
+
+    public long? TourStopId { get; set; }
+
+    public long? ArAnchorId { get; set; }
+
+    public long? NfcTagId { get; set; }
 }

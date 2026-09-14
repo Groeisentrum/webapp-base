@@ -77,4 +77,10 @@ public sealed class ContactInfoRequest
 
     [MaxLength(500)]
     public string? PostalAddress { get; set; }
+
+    /// <summary>
+    /// Platform key to profile URL. Left open rather than a fixed set of fields so a
+    /// deployment can add a platform by configuring it.
+    /// </summary>
+    public Dictionary<string, string>? SocialLinks { get; set; }
 }

@@ -32,6 +32,14 @@ internal sealed class LocationDetailConfiguration : IEntityTypeConfiguration<Loc
 
         builder.HasIndex(location => new { location.ContentId, location.IsDeleted });
 
+        // Indexed because the map and itinerary features will look pins up by these.
+        // Left non-unique on purpose: the tour, AR and NFC tables do not exist yet, so
+        // whether a tag maps to exactly one pin is not settled — and tightening an
+        // index later is additive, while loosening a unique one is not.
+        builder.HasIndex(location => location.TourStopId);
+        builder.HasIndex(location => location.ArAnchorId);
+        builder.HasIndex(location => location.NfcTagId);
+
         builder.HasQueryFilter(location => !location.IsDeleted);
     }
 }
