@@ -33,8 +33,8 @@ SELECT
     'Voortrekkermonument',
     'af',
     '["af","en"]',
-    '{"flags":{"augmentedReality":false,"virtualTour":false,"nfc":false}}',
-    '{"primaryColour":"#7b1f2b","secondaryColour":"#1f4e8c","accentColour":"#c8862a","headingFont":null,"bodyFont":null,"logoReference":null,"faviconReference":null}',
+    '{"flags":{"augmentedReality":false,"virtualTour":false,"nfc":false,"events":true}}',
+    '{"primaryColour":"#25404D","secondaryColour":"#0D3043","accentColour":"#B88F36","headingFont":"Open Sans","bodyFont":"Open Sans","logoReference":null,"faviconReference":null}',
     '{"emailAddress":"info@vtm.co.za","phoneNumber":"+27 12 326 6770","physicalAddress":"Eeufeesweg, Groenkloof, Pretoria","postalAddress":null,"socialLinks":{"facebook":"https://www.facebook.com/voortrekkermonument","instagram":"https://www.instagram.com/voortrekkermonument","youtube":"https://www.youtube.com/@voortrekkermonument"}}',
     '1.0',
     '1.0',
@@ -238,7 +238,10 @@ WHERE NOT EXISTS (SELECT 1 FROM location_details WHERE ContentId = content.Id);
 INSERT INTO menu_items
     (MenuType, LinkType, Label, CategoryId, StaticPageSlug, ExternalUrl,
      ParentMenuItemId, SortOrder, Visibility, VisibleToRoles, IsDeleted, CreatedAt)
-SELECT 1, 1, category.Name, category.Id, NULL, NULL, NULL, seed.o, 0, '[]', 0, @now
+SELECT 1, CASE WHEN seed.slug = 'gebeure' THEN 2 ELSE 1 END,
+    category.Name, CASE WHEN seed.slug = 'gebeure' THEN NULL ELSE category.Id END,
+    CASE WHEN seed.slug = 'gebeure' THEN 'gebeure' ELSE NULL END,
+    NULL, NULL, seed.o, 0, '[]', 0, @now
 FROM (
     SELECT 'nuus' AS slug, 1 AS o
     UNION ALL SELECT 'gebeure', 2
@@ -246,7 +249,8 @@ FROM (
 JOIN categories AS category ON category.Slug = seed.slug
 WHERE NOT EXISTS (
     SELECT 1 FROM menu_items
-    WHERE MenuType = 1 AND LinkType = 1 AND CategoryId = category.Id
+    WHERE MenuType = 1 AND ((LinkType = 1 AND CategoryId = category.Id)
+        OR (seed.slug = 'gebeure' AND LinkType = 2 AND StaticPageSlug = 'gebeure'))
 );
 
 -- Bottom hover menu: the four sections.

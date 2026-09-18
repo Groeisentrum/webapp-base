@@ -1,0 +1,281 @@
+{
+  "asOf": "2026-09-18T10:00:00+02:00",
+  "siteName": "Voortrekkermonument",
+  "logo": "https://vtm.org.za/wp-content/uploads/2021/09/vtmfn.png",
+  "branding": {
+    "primary": "#25404D",
+    "secondary": "#0D3043",
+    "accent": "#B88F36"
+  },
+  "contactEmail": "besprekings@kultuurtuiste.org.za",
+  "navigation": [
+    {
+      "label": "Tuis",
+      "href": "/voorskou"
+    },
+    {
+      "label": "Gebeure en ervarings",
+      "href": "/voorskou/gebeure"
+    }
+  ],
+  "events": [
+    {
+      "id": "abo-kunsuitstalling",
+      "title": "Wanneer geskiedenis weer praat",
+      "category": "Kuns & kultuur",
+      "description": "Ontdek Johanna Botha se unieke ABO-kunsuitstalling in die Senotaafsaal.",
+      "body": "Beendere dra ’n boodskap van lewe in hierdie kunsuitstalling deur Johanna Botha. Neem tyd om nader te kyk en die verhale agter die werke te ontdek.\n\nDie uitstalling is van 19 tot 25 September 2026 in die Senotaafsaal te sien. Bevestig besoekure en toegangsreëlings direk met die Monument.",
+      "image": "https://vtm.org.za/wp-content/uploads/2026/09/Foto1B-ABO-beenkuns.jpg",
+      "start": "2026-09-19T00:00:00+02:00",
+      "end": "2026-09-25T23:59:59+02:00",
+      "recurring": false,
+      "schedule": "",
+      "venue": "Senotaafsaal",
+      "priceLabel": "Toegang op navraag",
+      "bookingUrl": null,
+      "sourceUrl": "https://vtm.org.za/beendere-dra-boodskap-van-lewe-in-unieke-abo-kunsuitstalling/",
+      "facts": [
+        {
+          "label": "Uitstalling",
+          "value": "Johanna Botha se ABO-kuns"
+        },
+        {
+          "label": "Besoekure",
+          "value": "Bevestig met die Monument"
+        }
+      ]
+    },
+    {
+      "id": "erfenisfees",
+      "title": "Erfenisfees: Toeka tot Toekoms",
+      "category": "Feeste",
+      "description": "Een dag. Generasies se stories. Kom vier Erfenisdag met musiek, tradisies en iets vir die hele gesin.",
+      "body": "Maak hierdie Erfenisdag ’n saamweesdag. Ontdek die feesprogram, geniet die vermaak en beleef die tradisies wat generasies verbind.\n\nDie kanonkettingskoot is om 13:00 deel van die feesprogram. Dit is nie ’n aparte kaartjie nie. Die gepubliseerde kaartjietye is 07:00–17:00; programaktiwiteite kan vroeër eindig.\n\nDie standaard feeskaartjie sluit parkering en vermaak in. Moenie aanvaar dat alle ander ervarings of toegang tot die Monumentgebou daarby ingesluit is nie.",
+      "image": "https://vtm.org.za/wp-content/uploads/2026/07/Volkspele-1-scaled.jpg",
+      "start": "2026-09-24T07:00:00+02:00",
+      "end": "2026-09-24T17:00:00+02:00",
+      "recurring": false,
+      "schedule": "",
+      "venue": "Voortrekkermonument-terrein",
+      "priceLabel": "R50 per persoon",
+      "bookingUrl": "https://www.q2b.co.za/OnlineTickets/Index/1552?singleEvent=4871",
+      "sourceUrl": "https://vtm.org.za/erfenisfees/",
+      "facts": [
+        {
+          "label": "Tye",
+          "value": "07:00–17:00 · 24 September"
+        },
+        {
+          "label": "Ingesluit",
+          "value": "Parkering en vermaak"
+        },
+        {
+          "label": "Kinders",
+          "value": "Onder 6 jaar: gratis"
+        },
+        {
+          "label": "Kanonkettingskoot",
+          "value": "13:00 · deel van die fees"
+        }
+      ],
+      "tickets": [
+        {
+          "id": "standard",
+          "label": "Feeskaartjie",
+          "note": "Persone van 6 jaar en ouer",
+          "cents": 5000
+        },
+        {
+          "id": "child",
+          "label": "Kind onder 6",
+          "note": "Gratis saam met jou gesin",
+          "cents": 0
+        }
+      ]
+    },
+    {
+      "id": "museumteater",
+      "title": "Stap binne ’n ander tyd",
+      "category": "Teater",
+      "description": "Beleef die Toekomsbou Museumteater: ’n intieme vertelling wat die verlede nader bring.",
+      "body": "Neem plek vir ’n 90 minute lange museumteater-ervaring in Afrikaans. Met klein groepe van hoogstens tien mense bly die ervaring persoonlik.\n\nDie gepubliseerde program bied vertonings Maandag tot Vrydag om 09:00, 11:00 en 14:00, en Saterdag om 14:00. Werklike beskikbaarheid moet nog deur die besprekingsdiens bevestig word.",
+      "image": "https://vtm.org.za/wp-content/uploads/2024/07/Museumteater-Christina.png",
+      "start": null,
+      "end": null,
+      "recurring": true,
+      "schedule": "Ma–Vr: 09:00, 11:00, 14:00 · Sa: 14:00",
+      "venue": "Toekomsbou Museumteater",
+      "priceLabel": "Vanaf R110 per persoon",
+      "bookingUrl": "https://q2b.co.za/OnlineActivities/Index/1649?singleActivity=28394",
+      "sourceUrl": "https://vtm.org.za/toekomsbou-museumteater/",
+      "facts": [
+        {
+          "label": "Duur",
+          "value": "90 minute"
+        },
+        {
+          "label": "Taal",
+          "value": "Afrikaans"
+        },
+        {
+          "label": "Toeganklikheid",
+          "value": "Rolstoelvriendelik volgens die program"
+        },
+        {
+          "label": "Parkering",
+          "value": "R20 apart; nie by die kaartjietotaal ingesluit nie"
+        }
+      ],
+      "tickets": [
+        {
+          "id": "adult",
+          "label": "Volwassene",
+          "note": "Museumteater-toegang",
+          "cents": 16000
+        },
+        {
+          "id": "concession",
+          "label": "Kind / pensioenaris",
+          "note": "Bevestig toepaslike ouderdomme met VTM",
+          "cents": 11000
+        }
+      ],
+      "demoSlots": [
+        {
+          "value": "2026-09-25T09:00:00+02:00",
+          "label": "Vr 25 Sep · 09:00"
+        },
+        {
+          "value": "2026-09-25T11:00:00+02:00",
+          "label": "Vr 25 Sep · 11:00"
+        },
+        {
+          "value": "2026-09-26T14:00:00+02:00",
+          "label": "Sa 26 Sep · 14:00"
+        }
+      ],
+      "durationMinutes": 90,
+      "weekdays": [1, 2, 3, 4, 5, 6],
+      "groupSize": {
+        "min": 1,
+        "max": 10
+      }
+    },
+    {
+      "id": "ontsnapkamer",
+      "title": "Een span. Een uur. Kan julle ontsnap?",
+      "category": "Avontuur",
+      "description": "Bring jou slimste vriende en los die leidrade saam op in die Monument se ontsnapkamer.",
+      "body": "Werk saam, dink anders en hou die tyd dop. Hierdie ontsnapkamer is ’n groepservaring vir drie tot vyf mense.\n\nDie gepubliseerde tye is Vrydae om 16:00 en Saterdae om 09:00 en 11:00. Die prys van R650 is per sessie, nie per persoon nie. Bevestig jou voorkeurtyd voor jou besoek.",
+      "image": "https://vtm.org.za/wp-content/uploads/2025/10/Ontsnapkamer-web-600x400-1.png",
+      "start": null,
+      "end": null,
+      "recurring": true,
+      "schedule": "Vr: 16:00 · Sa: 09:00, 11:00",
+      "venue": "Toekomsbou Museumteater",
+      "priceLabel": "R650 per groepsessie",
+      "bookingUrl": "https://q2b.co.za/OnlineActivities/Index/1649?singleActivity=28395",
+      "sourceUrl": "https://vtm.org.za/toekomsbou-museumteater/",
+      "facts": [
+        {
+          "label": "Duur",
+          "value": "60 minute"
+        },
+        {
+          "label": "Groepgrootte",
+          "value": "3–5 persone per sessie"
+        },
+        {
+          "label": "Prysbasis",
+          "value": "Een kaartjie = een groepsessie"
+        }
+      ],
+      "tickets": [
+        {
+          "id": "group",
+          "label": "Groepsessie",
+          "note": "Een sessie vir 3–5 persone",
+          "cents": 65000,
+          "maxQuantity": 1
+        }
+      ],
+      "demoSlots": [
+        {
+          "value": "2026-09-25T16:00:00+02:00",
+          "label": "Vr 25 Sep · 16:00"
+        },
+        {
+          "value": "2026-09-26T09:00:00+02:00",
+          "label": "Sa 26 Sep · 09:00"
+        },
+        {
+          "value": "2026-09-26T11:00:00+02:00",
+          "label": "Sa 26 Sep · 11:00"
+        }
+      ],
+      "durationMinutes": 60,
+      "weekdays": [5, 6],
+      "groupSize": {
+        "min": 3,
+        "max": 5
+      }
+    },
+    {
+      "id": "parkrun",
+      "title": "Begin jou Saterdag buite",
+      "category": "Buitelug",
+      "description": "Stap, draf of hardloop. Maak die gratis 5 km-parkrun deel van jou naweek.",
+      "body": "Geniet die buitelug saam met ander stappers en hardlopers. VTM lys parkrun op Saterdae tussen 08:00 en 10:00.\n\nBevestig die volgende byeenkoms en registrasiereëlings by die organiseerder voordat jy vertrek. Hierdie blad bied nie parkrun-registrasie nie.",
+      "image": "https://vtm.org.za/wp-content/uploads/2024/07/Voortrekkermonument-3-1.png",
+      "start": null,
+      "end": null,
+      "recurring": true,
+      "schedule": "Saterdae · VTM lys 08:00–10:00",
+      "venue": "Monument-terrein",
+      "priceLabel": "Gratis parkrun",
+      "bookingUrl": null,
+      "sourceUrl": "https://vtm.org.za/sport-en-leefstyl/",
+      "facts": [
+        {
+          "label": "Afstand",
+          "value": "5 km"
+        },
+        {
+          "label": "Voor jou besoek",
+          "value": "Bevestig die organiseerder se reëlings"
+        }
+      ],
+      "weekdays": [6]
+    },
+    {
+      "id": "perderitte",
+      "title": "Sien die terrein uit ’n nuwe hoek",
+      "category": "Buitelug",
+      "description": "Verruil die gejaag vir ’n uur te perd. Reël vooraf ’n rit vir jou klein groep.",
+      "body": "VTM lys een uur lange perderitte vir groepe van hoogstens vier. Vooraf reëlings is nodig. Die gepubliseerde pryse is R200 vir volwassenes en R150 vir skoolkinders.\n\nKontak die Monument om tye, geskiktheid en enige ander vereistes te bevestig. Geen rit is bespreek deur hierdie blad te besoek nie.",
+      "image": "https://vtm.org.za/wp-content/uploads/2025/05/perd1-600x600.jpg",
+      "start": null,
+      "end": null,
+      "recurring": true,
+      "schedule": "Slegs op vooraf afspraak",
+      "venue": "Monument-terrein",
+      "priceLabel": "Vanaf R150 per skoolkind",
+      "bookingUrl": null,
+      "sourceUrl": "https://vtm.org.za/sport-en-leefstyl/",
+      "facts": [
+        {
+          "label": "Duur",
+          "value": "1 uur"
+        },
+        {
+          "label": "Groepgrootte",
+          "value": "Hoogstens 4 persone"
+        }
+      ],
+      "groupSize": {
+        "min": 1,
+        "max": 4
+      }
+    }
+  ]
+}
