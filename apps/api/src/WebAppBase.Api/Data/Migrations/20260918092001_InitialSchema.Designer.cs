@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WebAppBase.Api.Data;
@@ -11,22 +12,26 @@ using WebAppBase.Api.Data;
 namespace WebAppBase.Api.Data.Migrations
 {
     [DbContext(typeof(WebAppDbContext))]
-    [Migration("20260914065609_LocationPointsOfInterest")]
-    partial class LocationPointsOfInterest
+    [Migration("20260918092001_InitialSchema")]
+    partial class InitialSchema
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.7")
+                .HasAnnotation("ProductVersion", "9.0.20")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
+
+            MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
             modelBuilder.Entity("WebAppBase.Api.Domain.Entities.AuditLog", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
 
                     b.Property<int>("Action")
                         .HasColumnType("int");
@@ -51,7 +56,7 @@ namespace WebAppBase.Api.Data.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<DateTimeOffset>("OccurredAt")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("OldValues")
                         .HasColumnType("longtext");
@@ -71,12 +76,14 @@ namespace WebAppBase.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
                     b.Property<string>("Colour")
                         .HasMaxLength(32)
                         .HasColumnType("varchar(32)");
 
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Icon")
                         .HasMaxLength(100)
@@ -102,7 +109,7 @@ namespace WebAppBase.Api.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("Visibility")
                         .HasColumnType("int");
@@ -129,8 +136,10 @@ namespace WebAppBase.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
                     b.Property<DateTimeOffset>("ConsentedAt")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -138,7 +147,7 @@ namespace WebAppBase.Api.Data.Migrations
                         .HasColumnType("varchar(320)");
 
                     b.Property<DateTimeOffset?>("EmailVerifiedAt")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("IpAddress")
                         .HasMaxLength(64)
@@ -172,7 +181,7 @@ namespace WebAppBase.Api.Data.Migrations
                         .HasColumnType("varchar(256)");
 
                     b.Property<DateTimeOffset?>("WithdrawnAt")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime(6)");
 
                     b.HasKey("Id");
 
@@ -194,6 +203,8 @@ namespace WebAppBase.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
                     b.Property<string>("AssetReference")
                         .HasMaxLength(2048)
                         .HasColumnType("varchar(2048)");
@@ -208,23 +219,23 @@ namespace WebAppBase.Api.Data.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Description")
                         .HasMaxLength(2000)
                         .HasColumnType("varchar(2000)");
 
                     b.Property<DateTimeOffset?>("EventEnd")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<DateTimeOffset?>("EventStart")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<DateTimeOffset?>("PublishedAt")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Recurrence")
                         .IsRequired()
@@ -236,10 +247,10 @@ namespace WebAppBase.Api.Data.Migrations
                         .HasColumnType("varchar(300)");
 
                     b.Property<DateTimeOffset?>("UnpublishedAt")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("Visibility")
                         .HasColumnType("int");
@@ -265,6 +276,8 @@ namespace WebAppBase.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
                     b.Property<string>("AddressLine")
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
@@ -276,7 +289,7 @@ namespace WebAppBase.Api.Data.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
@@ -304,7 +317,7 @@ namespace WebAppBase.Api.Data.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime(6)");
 
                     b.HasKey("Id");
 
@@ -325,11 +338,13 @@ namespace WebAppBase.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
                     b.Property<long?>("CategoryId")
                         .HasColumnType("bigint");
 
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("ExternalUrl")
                         .HasMaxLength(2048)
@@ -360,7 +375,7 @@ namespace WebAppBase.Api.Data.Migrations
                         .HasColumnType("varchar(200)");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("Visibility")
                         .HasColumnType("int");
@@ -388,11 +403,13 @@ namespace WebAppBase.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
                     b.Property<long?>("ContentId")
                         .HasColumnType("bigint");
 
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Error")
                         .HasMaxLength(2000)
@@ -404,7 +421,7 @@ namespace WebAppBase.Api.Data.Migrations
                         .HasColumnType("varchar(100)");
 
                     b.Property<DateTimeOffset?>("SentAt")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -424,6 +441,8 @@ namespace WebAppBase.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
                     b.Property<string>("ActiveLanguageCodes")
                         .IsRequired()
                         .HasColumnType("json");
@@ -437,7 +456,7 @@ namespace WebAppBase.Api.Data.Migrations
                         .HasColumnType("json");
 
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("DefaultLanguageCode")
                         .IsRequired()
@@ -470,7 +489,7 @@ namespace WebAppBase.Api.Data.Migrations
                         .HasColumnType("varchar(32)");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime(6)");
 
                     b.HasKey("Id");
 
@@ -483,8 +502,10 @@ namespace WebAppBase.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<long>("EntityId")
                         .HasColumnType("bigint");
@@ -508,7 +529,7 @@ namespace WebAppBase.Api.Data.Migrations
                         .HasColumnType("varchar(16)");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Value")
                         .IsRequired()

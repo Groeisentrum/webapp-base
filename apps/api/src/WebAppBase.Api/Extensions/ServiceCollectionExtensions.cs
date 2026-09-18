@@ -17,7 +17,9 @@ public static class ServiceCollectionExtensions
         DatabaseOptions databaseOptions)
     {
         services.AddDbContext<WebAppDbContext>(options =>
-            options.UseMySQL(databaseOptions.ConnectionString));
+            options.UseMySql(
+                databaseOptions.ConnectionString,
+                new MariaDbServerVersion(new Version(11, 8, 9))));
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
