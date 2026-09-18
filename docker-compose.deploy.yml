@@ -5,7 +5,9 @@
 
 services:
   mariadb:
-    image: mariadb:11
+    # Pinned to 11.8 LTS, not the floating 11 tag: the content embedding index
+    # needs the VECTOR column type, which arrived in 11.7. The 11.4 LTS has none.
+    image: mariadb:11.8
     container_name: webapp-base-db
     restart: unless-stopped
     environment:

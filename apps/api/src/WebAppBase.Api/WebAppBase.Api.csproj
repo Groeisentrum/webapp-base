@@ -9,7 +9,9 @@
   <ItemGroup>
     <PackageReference Include="Amazon.Extensions.Configuration.SystemsManager" Version="7.0.0" />
     <PackageReference Include="AWSSDK.BedrockAgentCore" Version="4.0.111" />
+    <PackageReference Include="AWSSDK.BedrockRuntime" Version="4.0.101.7" />
     <PackageReference Include="AWSSDK.Core" Version="4.0.102.6" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.7" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.7">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

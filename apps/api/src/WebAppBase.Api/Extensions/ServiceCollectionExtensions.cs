@@ -1,10 +1,12 @@
 using Amazon;
 using Amazon.BedrockAgentCore;
+using Amazon.BedrockRuntime;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Options;
 using WebAppBase.Api.Configuration;
 using WebAppBase.Api.Data;
+using WebAppBase.Api.Mcp;
 using WebAppBase.Api.Repositories;
 using WebAppBase.Api.Services;
 
@@ -39,6 +41,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMenuItemRepository, MenuItemRepository>();
         services.AddScoped<ILocationDetailRepository, LocationDetailRepository>();
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+        services.AddScoped<IContentEmbeddingRepository, ContentEmbeddingRepository>();
 
         return services;
     }
@@ -121,6 +124,51 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<IOomPaulLlmClient, OomPaulLlmClient>();
         services.AddScoped<OomPaulChatService>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the content retrieval index: the Bedrock embedding client, the
+    /// vector repository, the query service, and the background indexer.
+    /// </summary>
+    /// <remarks>
+    /// The Bedrock region is deliberately its own setting rather than the
+    /// deployment's: ECR and EC2 live in af-south-1, which has no Bedrock at all.
+    ///
+    /// The indexer is registered whether or not retrieval is enabled — it reads the
+    /// flag itself and exits with one log line, which is a clearer signal than a
+    /// hosted service that silently was never there.
+    /// </remarks>
+    public static IServiceCollection AddContentRetrieval(this IServiceCollection services)
+    {
+        services.AddSingleton<IAmazonBedrockRuntime>(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<RetrievalOptions>>().Value;
+
+            return new AmazonBedrockRuntimeClient(RegionEndpoint.GetBySystemName(options.Region));
+        });
+
+        services.AddSingleton<IEmbeddingClient, EmbeddingClient>();
+        services.AddScoped<ContentRetrievalService>();
+        services.AddHostedService<ContentIndexerService>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the remote MCP server that exposes this deployment's published
+    /// content as tools.
+    /// </summary>
+    /// <remarks>
+    /// Left on the transport's stateless default: every gateway call is independent,
+    /// so there is no session affinity to arrange and a restart costs a caller nothing.
+    /// </remarks>
+    public static IServiceCollection AddSiteContentMcpServer(this IServiceCollection services)
+    {
+        services.AddMcpServer()
+            .WithHttpTransport()
+            .WithTools<SiteContentTools>();
 
         return services;
     }

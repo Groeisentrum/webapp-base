@@ -5,7 +5,9 @@
 
 services:
   mariadb:
-    image: mariadb:11
+    # Pinned to 11.8 LTS, not the floating 11 tag: the content embedding index
+    # needs the VECTOR column type, which arrived in 11.7. The 11.4 LTS has none.
+    image: mariadb:11.8
     container_name: webapp-base-db
     restart: unless-stopped
     environment:
@@ -55,6 +57,9 @@ services:
       OomPaul__HarnessArn: ${OOMPAUL_HARNESS_ARN:-}
       OomPaul__Qualifier: ${OOMPAUL_QUALIFIER:-DEFAULT}
       OomPaul__Region: ${OOMPAUL_REGION:-eu-west-1}
+      Retrieval__Enabled: ${RETRIEVAL_ENABLED:-false}
+      Retrieval__Region: ${RETRIEVAL_REGION:-eu-west-1}
+      Retrieval__McpApiKey: ${RETRIEVAL_MCP_API_KEY:-}
     expose:
       - "5000"
 

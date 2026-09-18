@@ -16,6 +16,12 @@ public sealed class OomPaulChatRequest
     [MaxLength(2000)]
     public string Message { get; set; } = string.Empty;
 
-    [MaxLength(128)]
+    /// <remarks>
+    /// AgentCore only accepts 33 to 100 characters of <c>[a-zA-Z0-9-_]</c>. A value
+    /// outside that is replaced with a fresh one rather than rejected — a stale or
+    /// mangled id costs the visitor their conversation history, not their turn. The id
+    /// actually used comes back on the response, and as the first frame of a stream.
+    /// </remarks>
+    [MaxLength(100)]
     public string? SessionId { get; set; }
 }

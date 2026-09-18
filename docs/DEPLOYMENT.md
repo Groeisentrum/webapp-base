@@ -48,6 +48,9 @@ Under `/GroeiSentrum/WebappBase/` (or a client-specific path, set via
 | `Skaaphond/EntityId` | String | Stamped on self-registered accounts |
 | `Posduif/ApiKey` | SecureString | |
 | `OomPaul/HarnessArn` | String | The AgentCore harness to invoke — see below |
+| `Retrieval/Enabled` | String | `true` to build and serve the content index — see below |
+| `Retrieval/Region` | String | Bedrock region for embeddings; defaults to `eu-west-1` |
+| `Retrieval/McpApiKey` | SecureString | Shared secret the AgentCore gateway presents to `/mcp` |
 
 Nothing secret belongs in `.env`, in the repository, or in a Docker image.
 
@@ -103,6 +106,48 @@ to just doesn't offer the chat.
 3. **Grant the EC2 instance role `bedrock-agentcore:InvokeHarness`** scoped to that
    ARN. Auth here is the instance role, the same as everywhere else this API calls
    AWS — there is no API key to configure.
+
+The chat endpoint also honours the `chatbot` feature flag in tenant settings. With the
+flag off the endpoint reports itself unavailable even when a harness is configured, so
+a client can switch the chat off from the admin area without a deploy.
+
+### Giving Oom Paul this site's content
+
+The harness knows its persona; it knows nothing about this deployment's exhibits,
+opening times or events. That comes from a remote MCP server the API hosts at `/mcp`,
+which the harness calls as a tool when it decides it needs facts.
+
+Two pieces have to be switched on.
+
+**The index.** Set `Retrieval/Enabled` to `true` and grant the instance role
+`bedrock:InvokeModel` on `amazon.titan-embed-text-v2:0` in `Retrieval/Region`. A
+background service then embeds every published, public content item and keeps the
+`content_embeddings` table in step with edits — it re-embeds only what changed, and
+drops anything that stops being public. It needs **MariaDB 11.7 or later** for the
+`VECTOR` column type; on anything older it logs one error and disables itself rather
+than failing per row. The compose files pin 11.8 for this reason.
+
+**The gateway.** Generate a secret (`openssl rand -hex 32`) and store it in
+`Retrieval/McpApiKey`. Then, in the Bedrock AgentCore console:
+
+1. Create a **gateway** and add an **MCP target** pointing at
+   `https://<host>/mcp`.
+2. Give the target an **API key credential provider** that sends the secret as the
+   `X-Api-Key` header.
+3. Attach the gateway to the Oom Paul harness.
+
+Nothing in this repository configures the harness's tools — the harness owns them,
+exactly as it owns the persona and the model.
+
+> An empty `Retrieval/McpApiKey` closes `/mcp` completely. A deployment that has not
+> set one serves no tools rather than serving them to anyone who asks.
+
+The two tools the server exposes, `search_site_content` and `get_site_content`, answer
+as an anonymous visitor: they resolve every match through the same read path the public
+site uses, so restricted or unpublished content is never returned and a hidden item
+reports as missing rather than forbidden. The index is a lookup, never an authority —
+an item restricted after it was indexed disappears from answers immediately, without
+waiting for the indexer to catch up.
 
 ## 4. Prepare the instance
 

@@ -1,10 +1,12 @@
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using ModelContextProtocol.AspNetCore;
 using WebAppBase.Api.Configuration;
 using WebAppBase.Api.Data;
 using WebAppBase.Api.Domain.Constants;
 using WebAppBase.Api.Extensions;
+using WebAppBase.Api.Mcp;
 using WebAppBase.Api.Middleware;
 using WebAppBase.Api.Services;
 
@@ -30,7 +32,31 @@ if (useParameterStore)
 builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.SectionName));
 builder.Services.Configure<SkaaphondOptions>(builder.Configuration.GetSection(SkaaphondOptions.SectionName));
 builder.Services.Configure<PosduifOptions>(builder.Configuration.GetSection(PosduifOptions.SectionName));
-builder.Services.Configure<OomPaulOptions>(builder.Configuration.GetSection(OomPaulOptions.SectionName));
+// Validated at startup rather than on first use: an unparseable region or a
+// malformed qualifier otherwise surfaces inside a DI factory mid-request, as a 500
+// on a visitor's question rather than a refusal to boot.
+builder.Services.AddOptions<OomPaulOptions>()
+    .Bind(builder.Configuration.GetSection(OomPaulOptions.SectionName))
+    .Validate(
+        options => !string.IsNullOrWhiteSpace(options.Region),
+        "OomPaul:Region must name an AWS region.")
+    .Validate(
+        options => OomPaulOptions.QualifierPattern().IsMatch(options.Qualifier),
+        "OomPaul:Qualifier must start with a letter and contain only letters, digits and underscores.")
+    .ValidateOnStart();
+
+builder.Services.AddOptions<RetrievalOptions>()
+    .Bind(builder.Configuration.GetSection(RetrievalOptions.SectionName))
+    .Validate(
+        options => options.Dimensions is 256 or 512 or 1024,
+        "Retrieval:Dimensions must be 256, 512 or 1024, and must match the VECTOR column width.")
+    .Validate(
+        options => options.MaxResults > 0,
+        "Retrieval:MaxResults must be at least one.")
+    .Validate(
+        options => !options.Enabled || !string.IsNullOrWhiteSpace(options.EmbeddingModelId),
+        "Retrieval:EmbeddingModelId is required when retrieval is enabled.")
+    .ValidateOnStart();
 
 var databaseOptions = builder.Configuration.GetSection(DatabaseOptions.SectionName).Get<DatabaseOptions>()
     ?? new DatabaseOptions();
@@ -43,6 +69,8 @@ builder.Services.AddWebAppServices();
 builder.Services.AddPosduifDispatch();
 builder.Services.AddSkaaphondUserClient();
 builder.Services.AddOomPaulChat();
+builder.Services.AddContentRetrieval();
+builder.Services.AddSiteContentMcpServer();
 builder.Services.AddWebAppAuthentication(skaaphondOptions);
 
 // Self-registration is anonymous and creates accounts upstream, so it is the obvious
@@ -109,6 +137,14 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHealthChecks("/health");
+
+// The remote MCP server. Authorisation here is a shared secret rather than a
+// visitor token: the caller is Bedrock AgentCore's gateway, not a person, and it
+// reaches the API from outside rather than through the webhost.
+// Grouped so the shared-secret filter covers every route the transport maps,
+// present and future: MapMcp returns a convention builder that takes no filter
+// of its own, and an endpoint the filter missed would be an open tool surface.
+app.MapGroup("/mcp").AddEndpointFilter<McpApiKeyFilter>().MapMcp();
 
 await app.RunAsync();
 

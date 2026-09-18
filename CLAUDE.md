@@ -55,6 +55,13 @@ WolkPoort when it needs another service's data. Do not add it to the function re
   alone; applying it to `/api/local` corrupts every response.
 - Authorisation is decided in the C# API from the verified token. `X-Actor-*` headers
   are audit attribution only — never gate access on them.
+- **The vector index is a lookup, never an authority.** `content_embeddings` answers
+  what is probably relevant; `PublicContentService` answers what the caller may see,
+  and it runs after every match. A dropped match is dropped in silence — reporting
+  "1 hidden" confirms the hidden item exists just as surely as a 403 would.
+- **Oom Paul's harness owns persona, prompt, model, safety rules and tools.** They live
+  in the AgentCore console, not here. The API carries the conversation and hosts the
+  MCP server the harness calls; it never assembles a prompt or picks a model.
 - No MediatR. This follows the established service/repository shape used by SkaapHond,
   Kraal and WolkPoort.
 
@@ -62,10 +69,10 @@ WolkPoort when it needs another service's data. Do not add it to the function re
 
 ```bash
 docker compose up --build          # full stack on https://localhost
-dotnet test --project apps/api     # 167 tests: unit + integration
+dotnet test --project apps/api     # 227 tests: unit + integration
 npm --prefix apps/nextjs run lint
 npm --prefix apps/nextjs run build
-npm --prefix apps/nextjs run test  # 60 tests
+npm --prefix apps/nextjs run test  # 78 tests
 ```
 
 A task is done only when the API builds warning-free with tests green, and the webhost
