@@ -33,3 +33,4 @@ Thumbs.db
 # Coding-agent tool artifacts
 .serena/
 .playwright-mcp/
+.impeccable/

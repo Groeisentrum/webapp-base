@@ -1,11 +1,23 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { MenuType } from "@/shared/interfaces/Domain";
-import type { CategoryTreeNode, MenuItem, PublicSiteConfig } from "@/shared/interfaces/Domain";
-import { getPublicCategories, getPublicMenuItems } from "@/shared/services/publicService";
-import { buildCategorySlugs, buildMenuHref, buildMenuTree } from "@/shared/lib/menuTree";
+import type {
+  CategoryTreeNode,
+  MenuItem,
+  PublicSiteConfig,
+} from "@/shared/interfaces/Domain";
+import {
+  getPublicCategories,
+  getPublicMenuItems,
+} from "@/shared/services/publicService";
+import {
+  buildCategorySlugs,
+  buildMenuHref,
+  buildMenuTree,
+} from "@/shared/lib/menuTree";
 import { LanguageSwitcher } from "@/app/(public)/LanguageSwitcher";
 import { BottomHoverMenu } from "@/app/(public)/BottomHoverMenu";
+import { OomPaulWidget } from "@/app/(public)/OomPaulWidget";
 import { SessionMenu } from "@/app/(public)/SessionMenu";
 import { SocialLinks } from "@/app/(public)/SocialLinks";
 
@@ -33,7 +45,8 @@ export async function PublicShell({
   hero?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const { categories, topMenu, bottomMenu, footerMenu } = await loadNavigation(language);
+  const { categories, topMenu, bottomMenu, footerMenu } =
+    await loadNavigation(language);
 
   const brandingStyle = buildBrandingStyle(siteConfig);
   const categorySlugs = buildCategorySlugs(categories);
@@ -84,9 +97,15 @@ export async function PublicShell({
 
       {hero}
 
-      <BottomHoverMenu items={bottomMenu} categories={categories} language={language} />
+      <BottomHoverMenu
+        items={bottomMenu}
+        categories={categories}
+        language={language}
+      />
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">{children}</main>
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
+        {children}
+      </main>
 
       <footer className="border-t border-(--panel-border) bg-(--panel-bg)">
         <div className="mx-auto max-w-5xl px-4 py-6 text-sm text-(--text-secondary)">
@@ -110,7 +129,9 @@ export async function PublicShell({
                           {item.label}
                         </Link>
                       ) : (
-                        <span className="inline-flex min-h-11 items-center">{item.label}</span>
+                        <span className="inline-flex min-h-11 items-center">
+                          {item.label}
+                        </span>
                       )}
                     </li>
                   );
@@ -143,15 +164,23 @@ export async function PublicShell({
 
           {/* Stacked on a phone: two underlined links on one line are easy to mis-tap. */}
           <nav className="mt-2 flex flex-col gap-1 sm:flex-row sm:gap-4">
-            <Link href="/privaatheid" className="inline-flex min-h-11 items-center underline">
+            <Link
+              href="/privaatheid"
+              className="inline-flex min-h-11 items-center underline"
+            >
               Privaatheidsbeleid
             </Link>
-            <Link href="/bepalings" className="inline-flex min-h-11 items-center underline">
+            <Link
+              href="/bepalings"
+              className="inline-flex min-h-11 items-center underline"
+            >
               Bepalings en voorwaardes
             </Link>
           </nav>
         </div>
       </footer>
+
+      <OomPaulWidget />
     </div>
   );
 }
@@ -188,7 +217,8 @@ function buildBrandingStyle(siteConfig: PublicSiteConfig): React.CSSProperties {
   const branding = siteConfig.branding;
 
   if (branding.primaryColour) style["--brand-primary"] = branding.primaryColour;
-  if (branding.secondaryColour) style["--brand-secondary"] = branding.secondaryColour;
+  if (branding.secondaryColour)
+    style["--brand-secondary"] = branding.secondaryColour;
   if (branding.accentColour) style["--brand-accent"] = branding.accentColour;
 
   return style as React.CSSProperties;
