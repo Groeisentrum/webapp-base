@@ -52,6 +52,9 @@ services:
       Posduif__BaseUrl: ${POSDUIF_URL:-https://posduif.konnek360.co.za}
       Posduif__ApiKey: ${POSDUIF_API_KEY:-}
       Posduif__Enabled: "${POSDUIF_ENABLED:-false}"
+      OomPaul__HarnessArn: ${OOMPAUL_HARNESS_ARN:-}
+      OomPaul__Qualifier: ${OOMPAUL_QUALIFIER:-DEFAULT}
+      OomPaul__Region: ${OOMPAUL_REGION:-eu-west-1}
     expose:
       - "5000"
 

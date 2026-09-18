@@ -47,6 +47,7 @@ Under `/GroeiSentrum/WebappBase/` (or a client-specific path, set via
 | `Skaaphond/DataHolderId` | String | Stamped on self-registered accounts |
 | `Skaaphond/EntityId` | String | Stamped on self-registered accounts |
 | `Posduif/ApiKey` | SecureString | |
+| `OomPaul/HarnessArn` | String | The AgentCore harness to invoke — see below |
 
 Nothing secret belongs in `.env`, in the repository, or in a Docker image.
 
@@ -85,6 +86,23 @@ API fails closed on any of them rather than creating something half-formed.
 > `EmailConfirmed = true`. With verify-before-create that value is accurate for this
 > template, but it means SkaapHond cannot distinguish verified from unverified accounts
 > created by any other route.
+
+### Enabling Oom Paul chat
+
+Off until `OomPaul/HarnessArn` is set — with it empty, the endpoint answers cleanly
+with "unavailable" rather than a raw AWS error, so a deployment with nothing to talk
+to just doesn't offer the chat.
+
+1. **Build the harness in the Bedrock AgentCore console** (persona, system prompt,
+   model, safety rules) for this client, and publish an endpoint — usually `DEFAULT`.
+   None of that configuration lives in this repository; the API only carries the
+   conversation to whichever harness `HarnessArn` names.
+2. **Put its endpoint ARN in `OomPaul/HarnessArn`.** `OomPaul/Qualifier` (default
+   `DEFAULT`) and `OomPaul/Region` (default `eu-west-1`) only need setting if either
+   differs from that default.
+3. **Grant the EC2 instance role `bedrock-agentcore:InvokeHarness`** scoped to that
+   ARN. Auth here is the instance role, the same as everywhere else this API calls
+   AWS — there is no API key to configure.
 
 ## 4. Prepare the instance
 

@@ -29,3 +29,7 @@ Thumbs.db
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Coding-agent tool artifacts
+.serena/
+.playwright-mcp/

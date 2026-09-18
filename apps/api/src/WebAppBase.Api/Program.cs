@@ -30,6 +30,7 @@ if (useParameterStore)
 builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.SectionName));
 builder.Services.Configure<SkaaphondOptions>(builder.Configuration.GetSection(SkaaphondOptions.SectionName));
 builder.Services.Configure<PosduifOptions>(builder.Configuration.GetSection(PosduifOptions.SectionName));
+builder.Services.Configure<OomPaulOptions>(builder.Configuration.GetSection(OomPaulOptions.SectionName));
 
 var databaseOptions = builder.Configuration.GetSection(DatabaseOptions.SectionName).Get<DatabaseOptions>()
     ?? new DatabaseOptions();
@@ -41,6 +42,7 @@ builder.Services.AddWebAppRepositories();
 builder.Services.AddWebAppServices();
 builder.Services.AddPosduifDispatch();
 builder.Services.AddSkaaphondUserClient();
+builder.Services.AddOomPaulChat();
 builder.Services.AddWebAppAuthentication(skaaphondOptions);
 
 // Self-registration is anonymous and creates accounts upstream, so it is the obvious
@@ -57,6 +59,18 @@ builder.Services.AddRateLimiter(rateLimiter =>
             {
                 PermitLimit = 5,
                 Window = TimeSpan.FromMinutes(15),
+                QueueLimit = 0
+            }));
+
+    // Every turn is a billed model call, so this caps spend from one source rather
+    // than blocking a real conversation's back-and-forth.
+    rateLimiter.AddPolicy(RateLimitPolicies.OomPaulChat, context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ResolvePartitionKey(context),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 20,
+                Window = TimeSpan.FromMinutes(5),
                 QueueLimit = 0
             }));
 });

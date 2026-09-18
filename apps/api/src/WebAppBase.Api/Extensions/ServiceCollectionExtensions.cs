@@ -1,3 +1,5 @@
+using Amazon;
+using Amazon.BedrockAgentCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using WebAppBase.Api.Configuration;
@@ -94,6 +96,27 @@ public static class ServiceCollectionExtensions
         });
 
         services.AddHostedService<NotificationDispatcherService>();
+
+        return services;
+    }
+
+
+    /// <summary>
+    /// Registers the Bedrock AgentCore client and the Oom Paul chat service. The
+    /// AWS client is a singleton, matching AWS's own guidance that its service
+    /// clients are thread-safe and expensive to construct per request.
+    /// </summary>
+    public static IServiceCollection AddOomPaulChat(this IServiceCollection services)
+    {
+        services.AddSingleton<IAmazonBedrockAgentCore>(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<OomPaulOptions>>().Value;
+
+            return new AmazonBedrockAgentCoreClient(RegionEndpoint.GetBySystemName(options.Region));
+        });
+
+        services.AddSingleton<IOomPaulLlmClient, OomPaulLlmClient>();
+        services.AddScoped<OomPaulChatService>();
 
         return services;
     }
