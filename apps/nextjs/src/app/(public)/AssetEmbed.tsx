@@ -1,4 +1,6 @@
+import { Landmark } from "lucide-react";
 import { AssetType } from "@/shared/interfaces/Domain";
+import { isDisplayableImageSrc } from "@/shared/lib/assetSrc";
 
 /**
  * Renders a content item's media according to its asset type.
@@ -39,10 +41,26 @@ export function AssetEmbed({
 
   if (assetType === AssetType.Image) {
     return (
-      // Deployment asset hosts vary per client, so next/image's allowlist cannot be
-      // configured at template level.
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={assetReference} alt={title} className="w-full rounded-lg" />
+      // Framed and given a brand-coloured ground for the same reason the cards are: a
+      // reference whose host is unreachable then reads as a photograph that has not
+      // been supplied, not as a broken page.
+      <div className="relative aspect-[16/9] max-h-[26rem] w-full overflow-hidden rounded-lg bg-(--brand-primary)">
+        <Landmark
+          className="absolute inset-0 m-auto h-12 w-12 text-(--text-inverse) opacity-25"
+          aria-hidden="true"
+        />
+
+        {/* Deployment asset hosts vary per client, so next/image's allowlist cannot be
+            configured at template level. */}
+        {isDisplayableImageSrc(assetReference) && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={assetReference}
+            alt={title}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        )}
+      </div>
     );
   }
 
@@ -60,7 +78,7 @@ export function AssetEmbed({
         href={assetReference}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-sm text-(--brand-primary) underline"
+        className="inline-flex min-h-11 items-center text-sm font-medium text-(--brand-primary) underline underline-offset-4"
       >
         Maak skakel oop
       </a>

@@ -3,6 +3,9 @@ import { getPublicContentById, getSiteConfig } from "@/shared/services/publicSer
 import { PublicShell } from "@/app/(public)/PublicShell";
 import { SetupNotice } from "@/app/(public)/SetupNotice";
 import { AssetEmbed } from "@/app/(public)/AssetEmbed";
+import { SectionBand } from "@/app/(public)/SectionBand";
+import { LocationMap } from "@/app/(public)/LocationMap";
+import { MapPin } from "lucide-react";
 import { formatDateTime } from "@/shared/lib/dateFields";
 
 export const dynamic = "force-dynamic";
@@ -41,17 +44,19 @@ export default async function ContentDetailPage({
 
   return (
     <PublicShell siteConfig={siteConfig} language={language}>
-      <article className="flex flex-col gap-4 sm:gap-5">
-        <h1 className="text-2xl font-semibold text-balance text-(--text-primary) sm:text-3xl">
-          {content.title}
-        </h1>
+      <article className="flex flex-col gap-5 sm:gap-6">
+        <header className="flex flex-col gap-2">
+          <h1 className="text-3xl leading-tight font-semibold text-balance text-(--text-primary) sm:text-4xl">
+            {content.title}
+          </h1>
 
-        {(content.eventStart || content.eventEnd) && (
-          <p className="text-sm text-(--text-secondary)">
-            {formatDateTime(content.eventStart)}
-            {content.eventEnd ? ` – ${formatDateTime(content.eventEnd)}` : ""}
-          </p>
-        )}
+          {(content.eventStart || content.eventEnd) && (
+            <p className="text-sm font-medium text-(--brand-primary)">
+              {formatDateTime(content.eventStart)}
+              {content.eventEnd ? ` – ${formatDateTime(content.eventEnd)}` : ""}
+            </p>
+          )}
+        </header>
 
         <AssetEmbed
           assetType={content.assetType}
@@ -60,7 +65,9 @@ export default async function ContentDetailPage({
         />
 
         {content.description && (
-          <p className="text-base text-pretty text-(--text-secondary)">{content.description}</p>
+          <p className="max-w-prose text-lg leading-relaxed text-pretty text-(--text-secondary)">
+            {content.description}
+          </p>
         )}
 
         {/* max-w-prose keeps line length readable once the viewport is wide. */}
@@ -71,24 +78,20 @@ export default async function ContentDetailPage({
         )}
 
         {content.locations.length > 0 && (
-          <section>
-            <h2 className="mb-2 text-lg font-semibold text-(--text-primary)">Ligging</h2>
-            <ul className="flex flex-col gap-3 text-sm text-(--text-secondary)">
+          <section className="mt-2">
+            <SectionBand title="Ligging" icon={MapPin} className="mb-6" />
+
+            <ul className="flex flex-col gap-4">
               {content.locations.map((location) => (
-                <li key={location.id} className="flex flex-col gap-0.5">
-                  <span className="font-medium text-(--text-primary)">
-                    {location.label ?? "Ligging"}
-                  </span>
-                  {location.addressLine && <span>{location.addressLine}</span>}
-                  {/* Opens the visitor's own map app — they are usually on site. */}
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex min-h-11 items-center text-(--brand-primary) underline"
-                  >
-                    Wys op kaart
-                  </a>
+                <li key={location.id}>
+                  <LocationMap
+                    // Falls back to the item's own name rather than the word "Ligging",
+                    // which used to repeat the heading directly above it.
+                    name={location.label ?? content.title}
+                    latitude={location.latitude}
+                    longitude={location.longitude}
+                    addressLine={location.addressLine}
+                  />
                 </li>
               ))}
             </ul>

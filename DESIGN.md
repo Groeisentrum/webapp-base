@@ -20,19 +20,19 @@ colors:
   focus-ring: "#2d7a63"
 typography:
   title:
-    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
+    fontFamily: "Open Sans, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
     fontSize: "1.125rem"
     fontWeight: 600
     lineHeight: 1.3
     letterSpacing: "normal"
   body:
-    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
+    fontFamily: "Open Sans, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
     fontSize: "0.875rem"
     fontWeight: 400
     lineHeight: 1.5
     letterSpacing: "normal"
   label:
-    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
+    fontFamily: "Open Sans, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
     fontSize: "0.75rem"
     fontWeight: 500
     lineHeight: 1.4
@@ -118,7 +118,8 @@ rebrand, which is the one thing this template exists to make cheap.
 - Semantic tokens only; brand colours are runtime-overridable data
 - Flat surfaces, hairline borders, almost no shadow
 - Deep green identifies, ochre accents, everything else is neutral
-- System font stack — no webfont, no layout shift, no third-party request
+- Open Sans, self-hosted at build time — no third-party request, no layout shift
+- Full-width coloured bands announce each section; cards lead with a picture
 
 ## 2. Colors
 
@@ -195,15 +196,16 @@ green does not get a green focus ring.
 
 ## 3. Typography
 
-**Display Font:** system-ui (with -apple-system, Segoe UI, Roboto, sans-serif)
-**Body Font:** system-ui (same stack)
+**Display Font:** Open Sans (with system-ui, -apple-system, Segoe UI, Roboto fallback)
+**Body Font:** Open Sans (same stack)
 **Label/Mono Font:** none distinct
 
-**Character:** One family, differentiated by weight and size alone. The system stack is
-a deliberate choice rather than a placeholder: it renders instantly with no webfont
-request, no layout shift and no third-party dependency, which matters when the reader is
-on mobile data at a monument. It also means the interface looks native to whatever phone
-is holding it, which suits signage better than a personality font would.
+**Character:** One family, differentiated by weight and size alone. Open Sans is the
+face the Voortrekkermonument's own site uses, and `next/font` self-hosts it at build
+time — so it costs no third-party request and shifts no layout, which is what the
+system stack was protecting before. Body line-height runs at 1.7, following the
+monument's own unusually open prose setting: it reads as unhurried rather than cramped,
+which suits a visitor standing still to read a panel.
 
 ### Hierarchy
 - **Title** (600, 1.125rem/`text-lg`, 1.3): Page and panel headings. The site name in
@@ -217,9 +219,11 @@ is holding it, which suits signage better than a personality font would.
 
 ### Named Rules
 
-**The Sentence Case Rule.** Labels and buttons are sentence case in Afrikaans. No
-all-caps tracked eyebrows — that pattern is the loudest AI tell in the current cohort
-and it reads as branding noise on a signage surface.
+**The Sentence Case Rule.** Labels, buttons, headings and card titles are sentence case
+in Afrikaans. The one exception is the section band, which is uppercase and tracked —
+that is the monument's own voice, used a handful of times per page on a coloured ground,
+as structure. An uppercase eyebrow floating over a section on a white ground is the AI
+tell; a band is not one. If a label is uppercase and is not inside a band, it is wrong.
 
 ## 4. Elevation
 
@@ -335,7 +339,11 @@ A floating launcher that expands into a conversation panel: a full-height sheet 
   white and VTM brass is 2.99:1 — fill colours, not reading colours.
 - **Don't** put a control at `bottom-4` on the public site. The bottom hover menu docks
   fixed at `bottom-0` on the same layer and the two will overlap.
-- **Don't** put a shadow on a card, header or input. Flat by default; shadow is for
-  things that actually float.
+- **Don't** put a resting shadow on a card, header or input. Flat by default; shadow is
+  for things that float, and for a card's hover state.
+- **Don't** ship a list of items with no pictures. A site about a place that shows none
+  of it reads as a directory.
+- **Don't** render an `AssetReference` straight into an `img src`. Check it resolves
+  first, or the browser paints its broken-image glyph over the placeholder.
 - **Don't** report what a viewer may not see — not in a count, not in an empty state,
   not in an error. Hidden is missing, never forbidden.
