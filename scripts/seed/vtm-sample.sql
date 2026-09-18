@@ -12,6 +12,13 @@
 --
 -- Idempotent: re-running changes nothing that already exists.
 --
+-- COLOURS: taken from the live Voortrekkermonument site (vtm.org.za), whose theme
+-- defines five author-set colours: #25404d slate, #26303e navy, #b88f36 brass,
+-- #6b723a olive and #b15535 terracotta. Branding uses three of them directly. The map
+-- needs ten distinguishable pins, so the rest are lighter and darker steps of the same
+-- five; every pin clears 3:1 against the light map ground, which the previous
+-- near-white #f5f5f5 pin did not.
+--
 -- COORDINATES: only the main monument below carries a surveyed coordinate
 -- (-25.776600, 28.175300). Every other pin is an approximation placed within the
 -- heritage site so the map and itinerary features have something real-shaped to
@@ -34,7 +41,7 @@ SELECT
     'af',
     '["af","en"]',
     '{"flags":{"augmentedReality":false,"virtualTour":false,"nfc":false}}',
-    '{"primaryColour":"#7b1f2b","secondaryColour":"#1f4e8c","accentColour":"#c8862a","headingFont":null,"bodyFont":null,"logoReference":null,"faviconReference":null}',
+    '{"primaryColour":"#25404d","secondaryColour":"#26303e","accentColour":"#b88f36","headingFont":null,"bodyFont":null,"logoReference":null,"faviconReference":null}',
     '{"emailAddress":"info@vtm.co.za","phoneNumber":"+27 12 326 6770","physicalAddress":"Eeufeesweg, Groenkloof, Pretoria","postalAddress":null,"socialLinks":{"facebook":"https://www.facebook.com/voortrekkermonument","instagram":"https://www.instagram.com/voortrekkermonument","youtube":"https://www.youtube.com/@voortrekkermonument"}}',
     '1.0',
     '1.0',
@@ -48,12 +55,12 @@ WHERE NOT EXISTS (SELECT 1 FROM tenant_settings);
 INSERT INTO categories
     (ParentCategoryId, Name, Slug, Colour, Icon, SortOrder, Visibility, VisibleToRoles, IsDeleted, CreatedAt)
 SELECT * FROM (
-    SELECT NULL AS p, 'Tuis' AS n, 'tuis' AS s, '#7b1f2b' AS c, NULL AS i, 1 AS o, 0 AS v, '[]' AS r, 0 AS d, @now AS t
-    UNION ALL SELECT NULL, 'Besoek',  'besoek',  '#1f4e8c', NULL, 2, 0, '[]', 0, @now
-    UNION ALL SELECT NULL, 'Beleef',  'beleef',  '#2e7d32', NULL, 3, 0, '[]', 0, @now
-    UNION ALL SELECT NULL, 'Behoort', 'behoort', '#c8862a', NULL, 4, 0, '[]', 0, @now
-    UNION ALL SELECT NULL, 'Nuus',    'nuus',    '#6a3d9a', NULL, 5, 0, '[]', 0, @now
-    UNION ALL SELECT NULL, 'Gebeure', 'gebeure', '#d9731f', NULL, 6, 0, '[]', 0, @now
+    SELECT NULL AS p, 'Tuis' AS n, 'tuis' AS s, '#25404d' AS c, NULL AS i, 1 AS o, 0 AS v, '[]' AS r, 0 AS d, @now AS t
+    UNION ALL SELECT NULL, 'Besoek',  'besoek',  '#26303e', NULL, 2, 0, '[]', 0, @now
+    UNION ALL SELECT NULL, 'Beleef',  'beleef',  '#b15535', NULL, 3, 0, '[]', 0, @now
+    UNION ALL SELECT NULL, 'Behoort', 'behoort', '#91702a', NULL, 4, 0, '[]', 0, @now
+    UNION ALL SELECT NULL, 'Nuus',    'nuus',    '#6b723a', NULL, 5, 0, '[]', 0, @now
+    UNION ALL SELECT NULL, 'Gebeure', 'gebeure', '#396276', NULL, 6, 0, '[]', 0, @now
 ) AS seed
 WHERE NOT EXISTS (SELECT 1 FROM categories WHERE Slug = seed.s);
 
@@ -68,16 +75,16 @@ INSERT INTO categories
     (ParentCategoryId, Name, Slug, Colour, Icon, SortOrder, Visibility, VisibleToRoles, IsDeleted, CreatedAt)
 SELECT parent.Id, seed.n, seed.s, seed.c, NULL, seed.o, 0, '[]', 0, @now
 FROM (
-    SELECT 'Alles' AS n, 'alles' AS s, '#1f4e8c' AS c, 1 AS o
-    UNION ALL SELECT 'Geskiedenis',                 'geskiedenis',                 '#7b1f2b', 2
-    UNION ALL SELECT 'Kinders',                     'kinders',                     '#e8b923', 3
-    UNION ALL SELECT 'Eet en ontspan',              'eet-en-ontspan',              '#d9731f', 4
-    UNION ALL SELECT 'Sport en leefstyl',           'sport-en-leefstyl',           '#2e7d32', 5
-    UNION ALL SELECT 'Fasiliteite',                 'fasiliteite',                 '#17a2a2', 6
-    UNION ALL SELECT 'Ontvangs en inligting',       'ontvangs-en-inligting',       '#c62828', 7
-    UNION ALL SELECT 'Parkering en toeganklikheid', 'parkering-en-toeganklikheid', '#222222', 8
-    UNION ALL SELECT 'Badkamers',                   'badkamers',                   '#6a3d9a', 9
-    UNION ALL SELECT 'Uitkykpunte',                 'uitkykpunte',                 '#f5f5f5', 10
+    SELECT 'Alles' AS n, 'alles' AS s, '#25404d' AS c, 1 AS o
+    UNION ALL SELECT 'Geskiedenis',                 'geskiedenis',                 '#b15535', 2
+    UNION ALL SELECT 'Kinders',                     'kinders',                     '#91702a', 3
+    UNION ALL SELECT 'Eet en ontspan',              'eet-en-ontspan',              '#cd7557', 4
+    UNION ALL SELECT 'Sport en leefstyl',           'sport-en-leefstyl',           '#6b723a', 5
+    UNION ALL SELECT 'Fasiliteite',                 'fasiliteite',                 '#396276', 6
+    UNION ALL SELECT 'Ontvangs en inligting',       'ontvangs-en-inligting',       '#8a4229', 7
+    UNION ALL SELECT 'Parkering en toeganklikheid', 'parkering-en-toeganklikheid', '#26303e', 8
+    UNION ALL SELECT 'Badkamers',                   'badkamers',                   '#3d4d64', 9
+    UNION ALL SELECT 'Uitkykpunte',                 'uitkykpunte',                 '#4b5029', 10
 ) AS seed
 JOIN categories AS parent ON parent.Slug = 'besoek'
 WHERE NOT EXISTS (SELECT 1 FROM categories WHERE Slug = seed.s);
