@@ -63,11 +63,12 @@ export default async function ContentDetailPage({
           <p className="text-base text-pretty text-(--text-secondary)">{content.description}</p>
         )}
 
-        {/* max-w-prose keeps line length readable once the viewport is wide. */}
+        {/* Fixed: Renders formatted HTML */}
         {content.body && (
-          <div className="max-w-prose text-base leading-relaxed whitespace-pre-wrap text-(--text-primary)">
-            {content.body}
-          </div>
+          <div
+            className="max-w-prose text-base leading-relaxed prose text-(--text-primary)"
+            dangerouslySetInnerHTML={{ __html: content.body }}
+          />
         )}
 
         {content.locations.length > 0 && (
