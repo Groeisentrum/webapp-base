@@ -205,3 +205,86 @@ describe("useOomPaulChat streaming a turn", () => {
     });
   });
 });
+
+describe("useOomPaulChat waiting for the first token", () => {
+  /**
+   * Two different questions, and the widget asks both: "may I send another turn" stays
+   * true for the whole stream, while "is Oom Paul still thinking" has to stop the moment
+   * he starts talking — otherwise the panel shows a thinking notice underneath the
+   * sentence he is visibly writing.
+   */
+  it("stops awaiting once the first delta lands, while the turn is still sending", async () => {
+    let releaseSecond: (() => void) | undefined;
+    const secondDelta = new Promise<void>((resolve) => {
+      releaseSecond = resolve;
+    });
+
+    streamChat.mockImplementation(async function* () {
+      yield { kind: "delta", text: "Goeie" };
+      await secondDelta;
+      yield { kind: "delta", text: "dag" };
+    });
+
+    const { result } = renderHook(() => useOomPaulChat());
+
+    let turn: Promise<void>;
+    act(() => {
+      turn = result.current.sendMessage("Goeiedag");
+    });
+
+    await waitFor(() => expect(result.current.isAwaitingReply).toBe(false));
+    expect(result.current.isSending).toBe(true);
+
+    await act(async () => {
+      releaseSecond!();
+      await turn!;
+    });
+
+    expect(result.current.isSending).toBe(false);
+  });
+
+  it("awaits a reply from the moment the turn is sent", async () => {
+    let release: (() => void) | undefined;
+    const firstDelta = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    streamChat.mockImplementation(async function* () {
+      await firstDelta;
+      yield { kind: "delta", text: "Goeiedag" };
+    });
+
+    const { result } = renderHook(() => useOomPaulChat());
+
+    let turn: Promise<void>;
+    act(() => {
+      turn = result.current.sendMessage("Goeiedag");
+    });
+
+    await waitFor(() => expect(result.current.isAwaitingReply).toBe(true));
+
+    await act(async () => {
+      release!();
+      await turn!;
+    });
+
+    expect(result.current.isAwaitingReply).toBe(false);
+  });
+
+  /**
+   * A refusal arrives with no delta at all, so nothing else would ever clear the notice
+   * and it would sit there under the error message.
+   */
+  it("stops awaiting when the turn fails before any text", async () => {
+    streamChat.mockImplementation(streamOf([], new ChatError("oompaul_unavailable", 503, "Weg.")));
+
+    const { result } = renderHook(() => useOomPaulChat());
+
+    await act(async () => {
+      await result.current.sendMessage("Goeiedag");
+    });
+
+    expect(result.current.isAwaitingReply).toBe(false);
+    expect(result.current.isSending).toBe(false);
+  });
+});

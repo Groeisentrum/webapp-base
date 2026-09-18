@@ -52,6 +52,9 @@ function writeStoredState(state: StoredChatState): void {
 export function useOomPaulChat() {
   const [state, setState] = useState<StoredChatState>(EMPTY_STATE);
   const [isSending, setIsSending] = useState(false);
+  // Distinct from isSending: the composer stays shut for the whole stream, but the
+  // thinking notice belongs only to the silence before Oom Paul starts talking.
+  const [isAwaitingReply, setIsAwaitingReply] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isHydrated = useRef(false);
 
@@ -84,6 +87,7 @@ export function useOomPaulChat() {
         messages: [...current.messages, { role: "visitor", text: trimmed }],
       }));
       setIsSending(true);
+      setIsAwaitingReply(true);
 
       // Set on the first delta, so a turn that fails before Oom Paul says anything
       // leaves no empty bubble sitting under the question.
@@ -101,6 +105,10 @@ export function useOomPaulChat() {
           // next delta and the first one would grow a message that does not exist yet.
           const isFirstDelta = !hasStartedReplying;
           hasStartedReplying = true;
+
+          if (isFirstDelta) {
+            setIsAwaitingReply(false);
+          }
 
           setState((current) => {
             if (isFirstDelta) {
@@ -127,6 +135,9 @@ export function useOomPaulChat() {
         setError(messageForChatError(caught));
       } finally {
         setIsSending(false);
+        // Also cleared here: a refused turn produces no delta at all, so nothing
+        // else would ever take the notice down.
+        setIsAwaitingReply(false);
       }
     },
     [isSending, state.sessionId],
@@ -138,6 +149,7 @@ export function useOomPaulChat() {
     setIsOpen,
     sendMessage,
     isSending,
+    isAwaitingReply,
     error,
   };
 }

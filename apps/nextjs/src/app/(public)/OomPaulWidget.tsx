@@ -18,7 +18,7 @@ import {
  * instant switch instead.
  */
 export function OomPaulWidget() {
-  const { messages, isOpen, setIsOpen, sendMessage, isSending, error } =
+  const { messages, isOpen, setIsOpen, sendMessage, isSending, isAwaitingReply, error } =
     useOomPaulChat();
   const [draft, setDraft] = useState("");
   const listEndRef = useRef<HTMLDivElement>(null);
@@ -44,10 +44,15 @@ export function OomPaulWidget() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isOpen, setIsOpen]);
 
+  // The streamed reply grows in place, so the message count stops changing after the
+  // first token — following the text is what keeps the panel scrolled to the bottom
+  // while the answer is still being written.
+  const lastMessageText = messages[messages.length - 1]?.text;
+
   useEffect(() => {
     if (!isOpen) return;
     listEndRef.current?.scrollIntoView({ block: "end" });
-  }, [isOpen, messages.length, isSending]);
+  }, [isOpen, messages.length, lastMessageText, isAwaitingReply]);
 
   const submit = async () => {
     if (draft.trim().length === 0 || isSending) return;
@@ -128,7 +133,9 @@ export function OomPaulWidget() {
             <ChatBubble key={index} message={message} />
           ))}
 
-          {isSending && (
+          {/* Only while nothing has arrived: once the words are streaming, the reply
+              itself is the progress indicator. */}
+          {isAwaitingReply && (
             <p role="status" className="text-sm text-(--text-secondary)">
               Oom Paul dink...
             </p>
