@@ -2,6 +2,12 @@
 #
 # Place this file, an .env, and docker/nginx/ssl/ at /opt/webapp-base on the instance.
 # CD sets IMAGE_TAG and runs `docker compose -f docker-compose.deploy.yml up -d`.
+#
+# Sized for a t3.small (2 vCPU, 2 GB RAM). Every service carries an explicit
+# mem_limit: without them the four containers negotiate for the same 2 GB and the
+# kernel picks the victim, which on this box is whichever one happened to allocate
+# last. The limits below total ~1.5 GB, leaving the host its own headroom, and a
+# 2 GB swapfile absorbs bursts rather than turning them into OOM kills.
 
 services:
   mariadb:
@@ -13,6 +19,20 @@ services:
     environment:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?set DB_ROOT_PASSWORD}
       MARIADB_DATABASE: ${DB_NAME:-webapp_base}
+    # Tuned down from MariaDB's defaults, which assume a machine with memory to
+    # spare. performance_schema alone costs well over 100 MB here and buys nothing
+    # on a single-tenant site; the buffer pool is sized for a content database of
+    # this order, not for the 128 MB default that would leave less for everything else.
+    command: >-
+      --performance-schema=OFF
+      --innodb-buffer-pool-size=192M
+      --innodb-log-file-size=48M
+      --innodb-flush-method=O_DIRECT
+      --max-connections=60
+      --key-buffer-size=8M
+      --tmp-table-size=16M
+      --max-heap-table-size=16M
+    mem_limit: 448m
     volumes:
       # Named volume so an instance-level snapshot captures the data directory.
       - mariadb-data:/var/lib/mysql
@@ -22,7 +42,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 40s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
 
   api:
     image: ${ECR_REGISTRY}/webapp-base-api:${IMAGE_TAG:-prod}
@@ -34,13 +57,27 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       # True in production: configuration and secrets come from SSM Parameter Store
-      # under /GroeiSentrum/WebappBase/, not from this file.
+      # under /GroeiSentrum/WebappBase/, not from this file. The container reaches
+      # SSM — and Bedrock — through the instance role over IMDS, so no key is set here.
       Configuration__UseParameterStore: "true"
       Configuration__ParameterStorePath: ${PARAMETER_STORE_PATH:-/GroeiSentrum/WebappBase/}
       Database__ConnectionString: "server=mariadb;port=3306;database=${DB_NAME:-webapp_base};user=root;password=${DB_ROOT_PASSWORD}"
       Database__MigrateOnStartup: "true"
+      # The instance runs in af-south-1; Bedrock AgentCore and the embedding model
+      # live in eu-west-1. OomPaul__Region and Retrieval__Region carry that, so this
+      # only needs to name the region the SDK falls back to for everything else.
+      AWS_REGION: ${AWS_REGION:-af-south-1}
+      AWS_DEFAULT_REGION: ${AWS_REGION:-af-south-1}
+      # Workstation GC: the server collector sizes its heaps per core and holds far
+      # more resident than this box can spare for a site of this traffic.
+      DOTNET_gcServer: "0"
+      DOTNET_GCConserveMemory: "5"
+    mem_limit: 576m
     expose:
       - "5000"
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
 
   webhost:
     image: ${ECR_REGISTRY}/webapp-base-web:${IMAGE_TAG:-prod}
@@ -53,8 +90,14 @@ services:
       LOCAL_API_URL: http://api:5000
       SKAAPHOND_API_URL: ${SKAAPHOND_API_URL:-https://skaaphond.konnek360.co.za}
       WOLKPOORT_API_URL: ${WOLKPOORT_API_URL:-https://wolkpoort.konnek360.co.za}
+      # Kept under the container limit so V8 collects rather than being OOM-killed.
+      NODE_OPTIONS: "--max-old-space-size=320"
+    mem_limit: 416m
     expose:
       - "3000"
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
 
   nginx:
     image: ${ECR_REGISTRY}/webapp-base-nginx:${IMAGE_TAG:-prod}
@@ -66,8 +109,12 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    mem_limit: 96m
     volumes:
       - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
 
 volumes:
   mariadb-data:
