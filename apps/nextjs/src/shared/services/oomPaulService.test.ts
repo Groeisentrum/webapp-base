@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ChatError, sendChat, streamChat, type ChatEvent } from "@/shared/services/oomPaulService";
+import {
+  ChatError,
+  sendChat,
+  sendOomPaulMessage,
+  streamChat,
+  type ChatEvent,
+} from "@/shared/services/oomPaulService";
 
 /**
  * The stream is where this breaks in the field: SSE frames arrive split at whatever
@@ -183,5 +189,49 @@ describe("sendChat", () => {
     stubFetch(problemResponse(400, { code: "validation_failed" }));
 
     await expect(sendChat("")).rejects.toMatchObject({ code: "validation_failed", status: 400 });
+  });
+});
+
+describe("sendOomPaulMessage", () => {
+  /**
+   * The widget used to post to /api/oompaul/chat, which did not forward the caller's
+   * address. The API partitions its rate limiter on that header, so every visitor was
+   * spending one shared bucket of 20 turns per five minutes. Pinning the path here
+   * because nothing else would notice it drifting back.
+   */
+  it("goes through the proxy that forwards the caller's address", async () => {
+    const fetchMock = stubFetch(
+      new Response(JSON.stringify({ sessionId: "s", reply: "Goeiedag" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await sendOomPaulMessage("Goeiedag", null);
+
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/public/oompaul/chat");
+  });
+
+  it("reports a rate-limited turn in words a visitor can read", async () => {
+    stubFetch(problemResponse(429, {}));
+
+    await expect(sendOomPaulMessage("Goeiedag", null)).rejects.toThrow(/te vinnig/);
+  });
+
+  /**
+   * A deployment with the chatbot switched off answers 503 with a ProblemDetails title
+   * that is already the sentence to show, so it must reach the visitor unmangled.
+   */
+  it("surfaces the API's own message when the chat is unavailable", async () => {
+    stubFetch(
+      problemResponse(503, {
+        title: "Oom Paul is nie vir hierdie werf beskikbaar nie.",
+        code: "oompaul_unavailable",
+      }),
+    );
+
+    await expect(sendOomPaulMessage("Goeiedag", null)).rejects.toThrow(
+      "Oom Paul is nie vir hierdie werf beskikbaar nie.",
+    );
   });
 });

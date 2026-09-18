@@ -1,3 +1,11 @@
+/**
+ * Both clients below go through this route rather than `/api/oompaul/chat`, which it
+ * replaced. It forwards X-Forwarded-For; without that header the API sees only the
+ * webhost container and buckets every visitor on the site together, so the first 20
+ * turns in five minutes exhaust the rate limit for everyone.
+ */
+const CHAT_ENDPOINT = "/api/public/oompaul/chat";
+
 export type OomPaulChatResponse = {
   sessionId: string;
   reply: string;
@@ -9,9 +17,12 @@ const RATE_LIMITED_MESSAGE =
   "Jy stuur te vinnig boodskappe. Wag 'n bietjie en probeer weer.";
 
 /**
- * Sends one chat turn to Oom Paul, always through this app's own `/api/oompaul`
- * route — the widget only ever runs in the browser, so there is no server-side path
- * to resolve the way the other public services do.
+ * Sends one chat turn to Oom Paul and waits for the whole reply.
+ *
+ * Goes through this app's own proxy rather than straight at the API: the widget only
+ * ever runs in the browser, so there is no server-side path to resolve the way the
+ * other public services do. That proxy forwards the caller's address, which decides
+ * whose rate-limit bucket the turn is spent from — see CHAT_ENDPOINT.
  *
  * Throws with a message that is already safe to show the visitor directly.
  */
@@ -19,7 +30,7 @@ export async function sendOomPaulMessage(
   message: string,
   sessionId: string | null,
 ): Promise<OomPaulChatResponse> {
-  const response = await fetch("/api/oompaul/chat", {
+  const response = await fetch(CHAT_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ message, sessionId }),
@@ -52,18 +63,11 @@ async function readProblemTitle(
 // ---------------------------------------------------------------------------
 // Streaming client for POST /api/public/oompaul/chat/stream.
 //
-// Written alongside the widget above rather than instead of it: the widget and
-// this arrived in parallel, and converging them is a deliberate next step, not a
-// silent rewrite of working code. Nothing here is wired to the UI yet.
-//
-// Two things it does that sendOomPaulMessage does not, and that decide which one
-// survives the merge: it reads the reply as it is written, and it reaches the API
-// through a route that forwards X-Forwarded-For. Without that header the API sees
-// only the webhost container, so every visitor on the site shares one bucket of
-// the 20-per-5-minutes rate limit.
+// The same turn as sendOomPaulMessage above, delivered as server-sent events so the
+// reply appears while it is still being written. Not yet wired to the widget, which
+// still waits for the whole answer.
 // ---------------------------------------------------------------------------
 
-const CHAT_ENDPOINT = "/api/public/oompaul/chat";
 const SESSION_STORAGE_KEY = "oompaul.sessionId";
 
 /**
