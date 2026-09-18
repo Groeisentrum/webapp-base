@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { sendOomPaulMessage } from "@/shared/services/oomPaulService";
+import { messageForChatError, streamChat } from "@/shared/services/oomPaulService";
 
 export type OomPaulMessage = {
   role: "visitor" | "oompaul";
@@ -20,8 +20,6 @@ const EMPTY_STATE: StoredChatState = {
   messages: [],
   isOpen: false,
 };
-const GENERIC_ERROR_MESSAGE =
-  "Jammer, iets het verkeerd geloop. Probeer asseblief weer.";
 
 function readStoredState(): StoredChatState {
   try {
@@ -87,21 +85,46 @@ export function useOomPaulChat() {
       }));
       setIsSending(true);
 
-      try {
-        const response = await sendOomPaulMessage(trimmed, state.sessionId);
+      // Set on the first delta, so a turn that fails before Oom Paul says anything
+      // leaves no empty bubble sitting under the question.
+      let hasStartedReplying = false;
 
-        setState((current) => ({
-          ...current,
-          sessionId: response.sessionId,
-          messages: [
-            ...current.messages,
-            { role: "oompaul", text: response.reply },
-          ],
-        }));
+      try {
+        for await (const event of streamChat(trimmed, state.sessionId)) {
+          if (event.kind === "session") {
+            setState((current) => ({ ...current, sessionId: event.sessionId }));
+            continue;
+          }
+
+          // Decided here rather than inside the updater: React runs the updater when
+          // it chooses, by which time the flag would already have been flipped for the
+          // next delta and the first one would grow a message that does not exist yet.
+          const isFirstDelta = !hasStartedReplying;
+          hasStartedReplying = true;
+
+          setState((current) => {
+            if (isFirstDelta) {
+              return {
+                ...current,
+                messages: [
+                  ...current.messages,
+                  { role: "oompaul", text: event.text },
+                ],
+              };
+            }
+
+            // The reply grows in place rather than arriving as one message per token.
+            const grown = [...current.messages];
+            const last = grown[grown.length - 1];
+            grown[grown.length - 1] = { ...last, text: last.text + event.text };
+
+            return { ...current, messages: grown };
+          });
+        }
       } catch (caught) {
-        setError(
-          caught instanceof Error ? caught.message : GENERIC_ERROR_MESSAGE,
-        );
+        // Whatever already streamed stays on screen: half an answer beats none, and
+        // the error line underneath says why it stopped.
+        setError(messageForChatError(caught));
       } finally {
         setIsSending(false);
       }

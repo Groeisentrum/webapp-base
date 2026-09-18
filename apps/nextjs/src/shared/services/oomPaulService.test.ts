@@ -1,20 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ChatError,
-  sendChat,
-  sendOomPaulMessage,
+  messageForChatError,
   streamChat,
   type ChatEvent,
 } from "@/shared/services/oomPaulService";
 
 /**
  * The stream is where this breaks in the field: SSE frames arrive split at whatever
- * boundary the network chose, and `sessionStorage` throws outright in a private window.
- * These pin both, plus the failure codes the caller needs to tell one outage apart from
- * another.
+ * boundary the network chose. These pin that, the endpoint the turn is sent to, and the
+ * failure codes a caller needs to tell one outage apart from another.
  */
-const SESSION_KEY = "oompaul.sessionId";
-
 function sseResponse(chunks: string[]): Response {
   const encoder = new TextEncoder();
 
@@ -44,26 +40,6 @@ function stubFetch(...responses: Response[]) {
   return fetchMock;
 }
 
-function stubSessionStorage(store = new Map<string, string>()) {
-  vi.stubGlobal("sessionStorage", {
-    getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => void store.set(key, value),
-  });
-
-  return store;
-}
-
-function stubBrokenSessionStorage() {
-  vi.stubGlobal("sessionStorage", {
-    getItem: () => {
-      throw new DOMException("denied");
-    },
-    setItem: () => {
-      throw new DOMException("denied");
-    },
-  });
-}
-
 async function collect(events: AsyncGenerator<ChatEvent>): Promise<ChatEvent[]> {
   const collected: ChatEvent[] = [];
 
@@ -84,7 +60,6 @@ afterEach(() => {
 
 describe("streamChat", () => {
   it("reassembles a frame split across two chunks", async () => {
-    stubSessionStorage();
     stubFetch(
       sseResponse([
         'data: {"kind":"session","sessionId":"abc"}\n\ndata: {"kind":"del',
@@ -92,146 +67,112 @@ describe("streamChat", () => {
       ]),
     );
 
-    expect(await collect(streamChat("hallo"))).toEqual([
+    expect(await collect(streamChat("hallo", null))).toEqual([
       { kind: "session", sessionId: "abc" },
       { kind: "delta", text: "Hallo" },
     ]);
   });
 
-  it("persists the session id and sends it back on the next turn", async () => {
-    const store = stubSessionStorage();
-    const fetchMock = stubFetch(
-      sseResponse(['data: {"kind":"session","sessionId":"abc"}\n\ndata: {"kind":"done"}\n\n']),
-      sseResponse(['data: {"kind":"done"}\n\n']),
-    );
+  /**
+   * The widget used to post to /api/oompaul/chat, which did not forward the caller's
+   * address. The API partitions its rate limiter on that header, so every visitor was
+   * spending one shared bucket of twenty turns per five minutes. Pinning the path
+   * because nothing else would notice it drifting back.
+   */
+  it("goes through the proxy that forwards the caller's address", async () => {
+    const fetchMock = stubFetch(sseResponse(['data: {"kind":"done"}\n\n']));
 
-    await collect(streamChat("eerste"));
+    await collect(streamChat("hallo", null));
 
-    expect(store.get(SESSION_KEY)).toBe("abc");
-    expect(sentBody(fetchMock, 0)).toEqual({ message: "eerste", sessionId: null });
-
-    await collect(streamChat("tweede"));
-
-    expect(sentBody(fetchMock, 1)).toEqual({ message: "tweede", sessionId: "abc" });
+    // The route exists at this exact path and switches to the upstream stream endpoint
+    // on the Accept header. Asking for a URL a route file does not back would fall
+    // through to the GET-only public proxy, which fetch stubs happily hide.
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/public/oompaul/chat");
+    expect(fetchMock.mock.calls[0][1]?.headers).toMatchObject({
+      Accept: "text/event-stream",
+    });
   });
 
-  it("keeps streaming when sessionStorage throws", async () => {
-    stubBrokenSessionStorage();
-    const fetchMock = stubFetch(
-      sseResponse([
-        'data: {"kind":"session","sessionId":"abc"}\n\ndata: {"kind":"delta","text":"Hallo"}\n\n',
-      ]),
-    );
+  /**
+   * The session id belongs to the caller's stored conversation, not to this module. A
+   * second copy here is one that could fall out of step with the messages it threads.
+   */
+  it("sends the session id it was given rather than one of its own", async () => {
+    const fetchMock = stubFetch(sseResponse(['data: {"kind":"done"}\n\n']));
 
-    expect(await collect(streamChat("hallo"))).toEqual([
-      { kind: "session", sessionId: "abc" },
-      { kind: "delta", text: "Hallo" },
-    ]);
-    expect(sentBody(fetchMock).sessionId).toBeNull();
+    await collect(streamChat("hallo", "sessie-123"));
+
+    expect(sentBody(fetchMock)).toEqual({ message: "hallo", sessionId: "sessie-123" });
   });
 
   it("surfaces the code carried by an error frame", async () => {
-    stubSessionStorage();
-    stubFetch(sseResponse(['data: {"kind":"error","code":"oompaul_failed"}\n\n']));
+    stubFetch(
+      sseResponse([
+        'data: {"kind":"delta","text":"Goeie"}\n\ndata: {"kind":"error","code":"oompaul_failed"}\n\n',
+      ]),
+    );
 
-    await expect(collect(streamChat("hallo"))).rejects.toMatchObject({
-      name: "ChatError",
+    await expect(collect(streamChat("hallo", null))).rejects.toMatchObject({
       code: "oompaul_failed",
     });
   });
 
   it("stops at the done frame", async () => {
-    stubSessionStorage();
     stubFetch(
-      sseResponse(['data: {"kind":"done"}\n\ndata: {"kind":"delta","text":"te laat"}\n\n']),
+      sseResponse([
+        'data: {"kind":"delta","text":"Hallo"}\n\ndata: {"kind":"done"}\n\ndata: {"kind":"delta","text":"na"}\n\n',
+      ]),
     );
 
-    expect(await collect(streamChat("hallo"))).toEqual([]);
+    expect(await collect(streamChat("hallo", null))).toEqual([{ kind: "delta", text: "Hallo" }]);
   });
 
   it("surfaces oompaul_unavailable when the assistant is switched off", async () => {
-    stubSessionStorage();
-    stubFetch(problemResponse(503, { title: "Nie beskikbaar nie.", code: "oompaul_unavailable" }));
+    stubFetch(
+      problemResponse(503, {
+        code: "oompaul_unavailable",
+        title: "Oom Paul is nie vir hierdie werf beskikbaar nie.",
+      }),
+    );
 
-    const error = await collect(streamChat("hallo")).catch((caught: unknown) => caught);
-
-    expect(error).toBeInstanceOf(ChatError);
-    expect(error).toMatchObject({ code: "oompaul_unavailable", status: 503 });
+    await expect(collect(streamChat("hallo", null))).rejects.toMatchObject({
+      code: "oompaul_unavailable",
+      status: 503,
+      detail: "Oom Paul is nie vir hierdie werf beskikbaar nie.",
+    });
   });
 
   it("keeps the status when a refusal names no code", async () => {
-    stubSessionStorage();
-    stubFetch(new Response("", { status: 429 }));
-
-    await expect(collect(streamChat("hallo"))).rejects.toMatchObject({
-      code: "oompaul_failed",
-      status: 429,
-    });
-  });
-});
-
-describe("sendChat", () => {
-  it("returns the reply and persists the session id", async () => {
-    const store = stubSessionStorage();
-    stubFetch(
-      new Response(JSON.stringify({ sessionId: "abc", reply: "Goeie dag" }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
-    );
-
-    expect(await sendChat("hallo")).toEqual({ sessionId: "abc", reply: "Goeie dag" });
-    expect(store.get(SESSION_KEY)).toBe("abc");
-  });
-
-  it("surfaces the ProblemDetails code", async () => {
-    stubSessionStorage();
-    stubFetch(problemResponse(400, { code: "validation_failed" }));
-
-    await expect(sendChat("")).rejects.toMatchObject({ code: "validation_failed", status: 400 });
-  });
-});
-
-describe("sendOomPaulMessage", () => {
-  /**
-   * The widget used to post to /api/oompaul/chat, which did not forward the caller's
-   * address. The API partitions its rate limiter on that header, so every visitor was
-   * spending one shared bucket of 20 turns per five minutes. Pinning the path here
-   * because nothing else would notice it drifting back.
-   */
-  it("goes through the proxy that forwards the caller's address", async () => {
-    const fetchMock = stubFetch(
-      new Response(JSON.stringify({ sessionId: "s", reply: "Goeiedag" }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
-    );
-
-    await sendOomPaulMessage("Goeiedag", null);
-
-    expect(fetchMock.mock.calls[0][0]).toBe("/api/public/oompaul/chat");
-  });
-
-  it("reports a rate-limited turn in words a visitor can read", async () => {
     stubFetch(problemResponse(429, {}));
 
-    await expect(sendOomPaulMessage("Goeiedag", null)).rejects.toThrow(/te vinnig/);
+    await expect(collect(streamChat("hallo", null))).rejects.toMatchObject({ status: 429 });
+  });
+});
+
+describe("messageForChatError", () => {
+  /**
+   * The API writes its refusals in Afrikaans already, so its wording reaches the
+   * visitor rather than something this layer invents from a code.
+   */
+  it("prefers the API's own sentence", () => {
+    const error = new ChatError("oompaul_unavailable", 503, "Oom Paul is nie beskikbaar nie.");
+
+    expect(messageForChatError(error)).toBe("Oom Paul is nie beskikbaar nie.");
   });
 
   /**
-   * A deployment with the chatbot switched off answers 503 with a ProblemDetails title
-   * that is already the sentence to show, so it must reach the visitor unmangled.
+   * A 429 body names no code and carries no title, so the one sentence that tells the
+   * visitor to simply wait has to come from here.
    */
-  it("surfaces the API's own message when the chat is unavailable", async () => {
-    stubFetch(
-      problemResponse(503, {
-        title: "Oom Paul is nie vir hierdie werf beskikbaar nie.",
-        code: "oompaul_unavailable",
-      }),
-    );
+  it("tells a throttled visitor to wait", () => {
+    expect(messageForChatError(new ChatError("oompaul_failed", 429))).toMatch(/te vinnig/);
+  });
 
-    await expect(sendOomPaulMessage("Goeiedag", null)).rejects.toThrow(
-      "Oom Paul is nie vir hierdie werf beskikbaar nie.",
-    );
+  it("falls back to something readable when the failure says nothing useful", () => {
+    expect(messageForChatError(new ChatError("oompaul_failed", 500))).toMatch(/verkeerd geloop/);
+  });
+
+  it("handles a failure that is not a ChatError at all", () => {
+    expect(messageForChatError(new TypeError("Failed to fetch"))).toBe("Failed to fetch");
   });
 });

@@ -1,74 +1,18 @@
 /**
- * Both clients below go through this route rather than `/api/oompaul/chat`, which it
- * replaced. It forwards X-Forwarded-For; without that header the API sees only the
- * webhost container and buckets every visitor on the site together, so the first 20
- * turns in five minutes exhaust the rate limit for everyone.
+ * Goes through this app's own proxy rather than straight at the API: the widget only
+ * ever runs in the browser, so there is no server-side path to resolve the way the
+ * other public services do.
+ *
+ * The route forwards X-Forwarded-For; without that header the API sees only the
+ * webhost container and buckets every visitor on the site together, so the first
+ * twenty turns in five minutes would exhaust the rate limit for everyone.
  */
 const CHAT_ENDPOINT = "/api/public/oompaul/chat";
-
-export type OomPaulChatResponse = {
-  sessionId: string;
-  reply: string;
-};
 
 const GENERIC_ERROR_MESSAGE =
   "Jammer, iets het verkeerd geloop. Probeer asseblief weer.";
 const RATE_LIMITED_MESSAGE =
   "Jy stuur te vinnig boodskappe. Wag 'n bietjie en probeer weer.";
-
-/**
- * Sends one chat turn to Oom Paul and waits for the whole reply.
- *
- * Goes through this app's own proxy rather than straight at the API: the widget only
- * ever runs in the browser, so there is no server-side path to resolve the way the
- * other public services do. That proxy forwards the caller's address, which decides
- * whose rate-limit bucket the turn is spent from — see CHAT_ENDPOINT.
- *
- * Throws with a message that is already safe to show the visitor directly.
- */
-export async function sendOomPaulMessage(
-  message: string,
-  sessionId: string | null,
-): Promise<OomPaulChatResponse> {
-  const response = await fetch(CHAT_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ message, sessionId }),
-  });
-
-  if (response.status === 429) {
-    throw new Error(RATE_LIMITED_MESSAGE);
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      (await readProblemTitle(response)) ?? GENERIC_ERROR_MESSAGE,
-    );
-  }
-
-  return (await response.json()) as OomPaulChatResponse;
-}
-
-async function readProblemTitle(
-  response: Response,
-): Promise<string | undefined> {
-  try {
-    const body = (await response.json()) as { title?: string };
-    return body.title;
-  } catch {
-    return undefined;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Streaming client for POST /api/public/oompaul/chat/stream.
-//
-// The same turn as sendOomPaulMessage above, delivered as server-sent events so the
-// reply appears while it is still being written. Not yet wired to the widget, which
-// still waits for the whole answer.
-// ---------------------------------------------------------------------------
-
-const SESSION_STORAGE_KEY = "oompaul.sessionId";
 
 /**
  * What a turn yields.
@@ -83,14 +27,16 @@ export type ChatEvent =
 /**
  * Carries the API's ProblemDetails `code` — `oompaul_unavailable`, `validation_failed`,
  * `oompaul_failed` — so a caller can tell "switched off" from "went wrong" instead of
- * reading a bare status. `status` is kept because the 429 body names no code of its own.
+ * reading a bare status. `status` is kept because the 429 body names no code of its own,
+ * and `detail` holds the API's own Afrikaans sentence when it sent one.
  */
 export class ChatError extends Error {
   constructor(
     readonly code: string,
     readonly status?: number,
+    readonly detail?: string,
   ) {
-    super(code);
+    super(detail ?? code);
     this.name = "ChatError";
   }
 }
@@ -98,15 +44,23 @@ export class ChatError extends Error {
 /**
  * Streams one turn, yielding the session id first and then each delta as it lands.
  *
- * The session id round-trip is protocol, not presentation: it is read from
- * `sessionStorage` before the turn and whatever the server answers with is written back,
- * so the API can thread the conversation without the caller tracking it.
+ * The session id is passed in and handed back rather than kept here: the caller already
+ * persists the conversation it belongs to, and a second copy in this module would be
+ * one that could fall out of step with it.
  */
 export async function* streamChat(
   message: string,
+  sessionId: string | null,
   signal?: AbortSignal,
 ): AsyncGenerator<ChatEvent> {
-  const response = await post(message, "text/event-stream", signal);
+  // The proxy serves both shapes on one path and reads Accept to pick the upstream
+  // endpoint, so streaming is asked for by the header, never by a different URL.
+  const response = await fetch(CHAT_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+    body: JSON.stringify({ message, sessionId }),
+    signal,
+  });
 
   if (!response.ok || !response.body) {
     throw await readChatError(response);
@@ -134,15 +88,14 @@ export async function* streamChat(
         const frame = parseFrame(buffer.slice(0, boundary));
         buffer = buffer.slice(boundary + 2);
 
-        if (frame?.kind === "session") {
-          writeSessionId(frame.sessionId);
-          yield frame;
-        } else if (frame?.kind === "delta") {
+        if (frame?.kind === "session" || frame?.kind === "delta") {
           yield frame;
         } else if (frame?.kind === "done") {
           return;
         } else if (frame?.kind === "error") {
-          throw new ChatError(frame.code);
+          // The status was 200 before the first frame went out, so a failure this late
+          // can only travel as a frame.
+          throw new ChatError(frame.code, response.status);
         }
 
         boundary = buffer.indexOf("\n\n");
@@ -155,30 +108,25 @@ export async function* streamChat(
   }
 }
 
-/** The buffered fallback, for callers that would rather wait for the whole answer. */
-export async function sendChat(message: string): Promise<{ sessionId: string; reply: string }> {
-  const response = await post(message, "application/json");
-
-  if (!response.ok) {
-    throw await readChatError(response);
+/**
+ * The sentence to put in front of the visitor. Kept here rather than in the widget so
+ * one failure never reads two different ways depending on which screen it reached.
+ */
+export function messageForChatError(caught: unknown): string {
+  if (!(caught instanceof ChatError)) {
+    return caught instanceof Error && caught.message ? caught.message : GENERIC_ERROR_MESSAGE;
   }
 
-  const payload = (await response.json()) as { sessionId: string; reply: string };
-  writeSessionId(payload.sessionId);
+  if (caught.status === 429) {
+    return RATE_LIMITED_MESSAGE;
+  }
 
-  return payload;
+  // The API writes its own refusals in Afrikaans already, so its wording beats anything
+  // this layer could invent from a code.
+  return caught.detail ?? GENERIC_ERROR_MESSAGE;
 }
 
 type ChatFrame = ChatEvent | { kind: "done" } | { kind: "error"; code: string };
-
-function post(message: string, accept: string, signal?: AbortSignal): Promise<Response> {
-  return fetch(CHAT_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: accept },
-    body: JSON.stringify({ message, sessionId: readSessionId() }),
-    signal,
-  });
-}
 
 function parseFrame(frame: string): ChatFrame | null {
   const line = frame.split("\n").find((candidate) => candidate.startsWith("data:"));
@@ -198,32 +146,16 @@ function parseFrame(frame: string): ChatFrame | null {
 
 async function readChatError(response: Response): Promise<ChatError> {
   try {
-    const payload = (await response.json()) as { code?: unknown } | null;
+    const payload = (await response.json()) as { code?: unknown; title?: unknown } | null;
+    const detail = typeof payload?.title === "string" ? payload.title : undefined;
 
     if (typeof payload?.code === "string" && payload.code.length > 0) {
-      return new ChatError(payload.code, response.status);
+      return new ChatError(payload.code, response.status, detail);
     }
-  } catch {
-    // Falls through: not every failure answers with ProblemDetails.
-  }
 
-  return new ChatError("oompaul_failed", response.status);
-}
-
-function readSessionId(): string | null {
-  try {
-    return sessionStorage.getItem(SESSION_STORAGE_KEY);
+    return new ChatError("oompaul_failed", response.status, detail);
   } catch {
-    // Private-mode browsers throw on access. Starting a fresh conversation is a far
-    // better outcome than failing the turn.
-    return null;
-  }
-}
-
-function writeSessionId(sessionId: string): void {
-  try {
-    sessionStorage.setItem(SESSION_STORAGE_KEY, sessionId);
-  } catch {
-    // As above: the conversation continues, it just will not survive a reload.
+    // Not every failure answers with ProblemDetails.
+    return new ChatError("oompaul_failed", response.status);
   }
 }
