@@ -111,3 +111,95 @@ describe("OomPaulWidget", () => {
     expect(screen.queryByRole("status")).toBeNull();
   });
 });
+
+describe("OomPaulWidget keyboard and assistive technology", () => {
+  /**
+   * PublicShell is rendered fresh on every public page rather than through a shared
+   * layout, so the widget mounts on every navigation. Focusing the launcher on mount
+   * therefore stole focus from the page on every single page load, and moved the
+   * viewport to the bottom-right corner with it.
+   */
+  it("does not take focus when the page loads", () => {
+    stubChat({ isOpen: false });
+
+    render(<OomPaulWidget />);
+
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  /**
+   * The panel stays mounted when closed so it can animate, which left its textarea and
+   * both its buttons in the tab order behind an aria-hidden container — focusable but
+   * invisible and unannounced. That is the axe "aria-hidden-focus" violation, and for a
+   * keyboard visitor it is three tab stops into nothing.
+   */
+  it("takes the closed panel out of the tab order entirely", () => {
+    stubChat({ isOpen: false });
+
+    const { container } = render(<OomPaulWidget />);
+    const panel = container.querySelector('[role="dialog"]')!;
+
+    expect(panel.hasAttribute("inert")).toBe(true);
+  });
+
+  it("puts the open panel back in the tab order and takes the launcher out", () => {
+    stubChat({ isOpen: true });
+
+    const { container } = render(<OomPaulWidget />);
+
+    expect(container.querySelector('[role="dialog"]')!.hasAttribute("inert")).toBe(false);
+    expect(screen.getByRole("button", { name: "Gesels met Oom Paul" }).hasAttribute("inert")).toBe(
+      true,
+    );
+  });
+
+  /**
+   * A reply that arrives a token at a time is invisible to a screen reader: the text is
+   * painted, but nothing announces it. Announcing every token instead would interrupt
+   * the reader on each one. The finished reply is announced once, politely.
+   */
+  it("announces the finished reply once, not every token", () => {
+    stubChat({
+      messages: [
+        { role: "visitor", text: "Goeiedag" },
+        { role: "oompaul", text: "Goeiedag, jong burger." },
+      ],
+      isSending: false,
+      isAwaitingReply: false,
+    });
+
+    const { container } = render(<OomPaulWidget />);
+    const live = container.querySelector('[data-testid="oompaul-announcer"]')!;
+
+    expect(live.getAttribute("aria-live")).toBe("polite");
+    expect(live.textContent).toBe("Goeiedag, jong burger.");
+  });
+
+  it("announces nothing while the reply is still being written", () => {
+    stubChat({
+      messages: [
+        { role: "visitor", text: "Goeiedag" },
+        { role: "oompaul", text: "Goeie" },
+      ],
+      isSending: true,
+      isAwaitingReply: false,
+    });
+
+    const { container } = render(<OomPaulWidget />);
+
+    expect(container.querySelector('[data-testid="oompaul-announcer"]')!.textContent).toBe("");
+  });
+
+  /**
+   * aria-modal tells assistive technology the rest of the page is inert. Nothing here
+   * traps focus, and above `sm` the panel is a docked corner panel that deliberately
+   * leaves the page usable — so the claim was false at every breakpoint.
+   */
+  it("does not claim to be modal when nothing traps focus", () => {
+    stubChat({ isOpen: true });
+
+    const { container } = render(<OomPaulWidget />);
+
+    expect(container.querySelector('[role="dialog"]')!.hasAttribute("aria-modal")).toBe(false);
+  });
+});

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { MenuType } from "@/shared/interfaces/Domain";
+import { FEATURE_FLAGS, MenuType } from "@/shared/interfaces/Domain";
 import type {
   CategoryTreeNode,
   MenuItem,
@@ -180,7 +180,9 @@ export async function PublicShell({
         </div>
       </footer>
 
-      <OomPaulWidget />
+      {/* The chatbot flag gated the API but not the UI, so a deployment with the chat
+          switched off still showed a launcher that answered 503 when tapped. */}
+      {siteConfig.featureFlags[FEATURE_FLAGS.chatbot] && <OomPaulWidget />}
     </div>
   );
 }

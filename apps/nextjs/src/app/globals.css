@@ -27,7 +27,10 @@
   --state-warning: #8a6116;
   --state-warning-bg: #fcf3e2;
 
-  --focus-ring: #2d7a63;
+  /* Follows the brand: TenantSettings overrides --brand-secondary at runtime, so a
+     client no longer gets a green focus ring on a palette that has no green in it.
+     Identical to the previous literal for the template's own defaults. */
+  --focus-ring: var(--brand-secondary);
 }
 
 @theme inline {

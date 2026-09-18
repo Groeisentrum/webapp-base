@@ -25,7 +25,16 @@ export function OomPaulWidget() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
 
+  // PublicShell renders fresh on every public page rather than through a shared layout,
+  // so this widget mounts on every navigation. Moving focus on mount therefore stole it
+  // from the page each time, and dragged the viewport to the corner with it. Focus moves
+  // only when the panel actually opens or closes.
+  const wasOpen = useRef(isOpen);
+
   useEffect(() => {
+    if (wasOpen.current === isOpen) return;
+    wasOpen.current = isOpen;
+
     if (isOpen) {
       textareaRef.current?.focus();
     } else {
@@ -54,6 +63,15 @@ export function OomPaulWidget() {
     listEndRef.current?.scrollIntoView({ block: "end" });
   }, [isOpen, messages.length, lastMessageText, isAwaitingReply]);
 
+  // A streamed reply is painted token by token, which a screen reader never hears. The
+  // finished reply is announced once instead: announcing each token would interrupt the
+  // reader on every one, and announcing nothing leaves the answer unread.
+  const lastMessage = messages[messages.length - 1];
+  const finishedReply =
+    !isSending && !isAwaitingReply && lastMessage?.role === "oompaul"
+      ? lastMessage.text
+      : "";
+
   const submit = async () => {
     if (draft.trim().length === 0 || isSending) return;
 
@@ -69,11 +87,17 @@ export function OomPaulWidget() {
         type="button"
         onClick={() => setIsOpen(true)}
         aria-label="Gesels met Oom Paul"
-        aria-hidden={isOpen}
-        tabIndex={isOpen ? -1 : 0}
+        // inert takes it out of the tab order AND hides it from assistive technology.
+        // aria-hidden alone left it focusable, which is the axe aria-hidden-focus failure.
+        inert={isOpen}
         className={cn(
-          "fixed right-4 bottom-4 z-40 flex h-14 w-14 items-center justify-center rounded-full",
-          "bg-(--brand-accent) text-(--text-inverse) shadow-lg hover:opacity-90",
+          // bottom-20 clears the docked bottom menu, which is fixed full-width at
+          // bottom-0 on the same layer — the launcher was sitting on top of its links.
+          "fixed right-4 bottom-20 z-40 flex h-14 w-14 items-center justify-center rounded-full",
+          // Brand primary, not accent: this is a primary action, and the accent is a
+          // light brass on several client palettes that fails non-text contrast both
+          // against the icon on it and against the page behind it.
+          "bg-(--brand-primary) text-(--text-inverse) shadow-lg hover:opacity-90",
           "motion-safe:transition motion-safe:duration-200 motion-safe:ease-out",
           "sm:right-6 sm:bottom-6",
           isOpen
@@ -86,12 +110,19 @@ export function OomPaulWidget() {
 
       <div
         role="dialog"
-        aria-modal="true"
-        aria-label="Gesels met Oom Paul"
-        aria-hidden={!isOpen}
+        // Named by its own heading rather than a duplicate aria-label: the launcher is
+        // already called "Gesels met Oom Paul", and two elements answering to one name
+        // is ambiguous for anyone navigating by name.
+        aria-labelledby="oompaul-panel-title"
+        // No aria-modal: nothing traps focus, and above sm this is a docked corner panel
+        // that deliberately leaves the rest of the page usable. Claiming modal would tell
+        // assistive technology the page behind it is inert when it is not.
+        inert={!isOpen}
         className={cn(
           "fixed inset-0 z-50 flex flex-col bg-(--panel-bg)",
-          "sm:inset-auto sm:right-6 sm:bottom-6 sm:h-[32rem] sm:w-96 sm:rounded-lg sm:border sm:border-(--panel-border) sm:shadow-xl",
+          // Capped against the viewport as well as at 32rem: sm is a width breakpoint, so
+          // a landscape phone would otherwise get a 512px panel in a 360px-tall window.
+          "sm:inset-auto sm:right-6 sm:bottom-6 sm:h-[min(32rem,calc(100dvh-3rem))] sm:w-96 sm:rounded-lg sm:border sm:border-(--panel-border) sm:shadow-xl",
           "motion-safe:transition motion-safe:duration-200 motion-safe:ease-out",
           isOpen
             ? "translate-y-0 opacity-100"
@@ -99,14 +130,17 @@ export function OomPaulWidget() {
         )}
       >
         <header className="flex items-center gap-3 border-b border-(--panel-border) px-4 py-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-(--brand-accent) text-(--text-inverse)">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-(--brand-primary) text-(--text-inverse)">
             <UserRound className="h-5 w-5" aria-hidden="true" />
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-(--text-primary)">
+            <h2
+              id="oompaul-panel-title"
+              className="truncate text-sm font-semibold text-(--text-primary)"
+            >
               Oom Paul
-            </p>
+            </h2>
             <p className="truncate text-xs text-(--text-secondary)">
               Historiese uitbeelding van Paul Kruger
             </p>
@@ -150,12 +184,23 @@ export function OomPaulWidget() {
           <div ref={listEndRef} />
         </div>
 
+        <p
+          data-testid="oompaul-announcer"
+          aria-live="polite"
+          aria-atomic="true"
+          className="sr-only"
+        >
+          {finishedReply}
+        </p>
+
         <form
           onSubmit={(event) => {
             event.preventDefault();
             void submit();
           }}
-          className="flex items-end gap-2 border-t border-(--panel-border) p-3"
+          // The extra bottom padding is the iOS home indicator; without it the composer
+          // sits underneath it on a full-screen phone panel.
+          className="flex items-end gap-2 border-t border-(--panel-border) p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-3"
         >
           <textarea
             ref={textareaRef}
