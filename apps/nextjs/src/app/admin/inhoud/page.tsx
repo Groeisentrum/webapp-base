@@ -33,15 +33,8 @@ import {
   type ContentInput,
 } from "@/shared/services/contentService";
 import { TranslationsPanel } from "./TranslationsPanel";
-
-const ASSET_TYPE_LABELS: Record<AssetType, string> = {
-  [AssetType.None]: "Geen",
-  [AssetType.YouTube]: "YouTube",
-  [AssetType.S3]: "S3",
-  [AssetType.SelfHosted]: "Self gehuisves",
-  [AssetType.ExternalLink]: "Eksterne skakel",
-  [AssetType.Image]: "Beeld",
-};
+import { LocationPanel } from "./LocationPanel";
+import { ASSET_TYPE_LABELS } from "@/shared/lib/assetTypeLabels";
 
 const WEEKDAY_LABELS = ["Sondag", "Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrydag", "Saterdag"];
 
@@ -77,6 +70,7 @@ export default function ContentPage() {
   const [form, setForm] = useState<ContentInput>(emptyForm);
   const [deleteTarget, setDeleteTarget] = useState<Content | null>(null);
   const [translationTarget, setTranslationTarget] = useState<Content | null>(null);
+  const [locationTarget, setLocationTarget] = useState<Content | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const contentQuery = useQuery({
@@ -200,6 +194,9 @@ export default function ContentPage() {
                       </Button>
                       <Button variant="ghost" onClick={() => setTranslationTarget(item)}>
                         Vertalings
+                      </Button>
+                      <Button variant="ghost" onClick={() => setLocationTarget(item)}>
+                        Ligging
                       </Button>
                       <Button variant="ghost" onClick={() => setDeleteTarget(item)}>
                         Verwyder
@@ -457,6 +454,14 @@ export default function ContentPage() {
         onClose={() => setTranslationTarget(null)}
       >
         {translationTarget && <TranslationsPanel content={translationTarget} />}
+      </Modal>
+
+      <Modal
+        isOpen={locationTarget !== null}
+        title={`Ligging — ${locationTarget?.title ?? ""}`}
+        onClose={() => setLocationTarget(null)}
+      >
+        {locationTarget && <LocationPanel content={locationTarget} />}
       </Modal>
 
       <ConfirmDialog

@@ -19,6 +19,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/admin/instellings", label: "Werfinstellings", adminOnly: true },
   { href: "/admin/kategorie", label: "Kategorieë", adminOnly: true },
   { href: "/admin/inhoud", label: "Inhoud", adminOnly: false },
+  { href: "/admin/kaart", label: "Kaart", adminOnly: false },
   { href: "/admin/kieslys", label: "Kieslys", adminOnly: false },
   { href: "/admin/oudit", label: "Ouditspoor", adminOnly: true },
 ];
