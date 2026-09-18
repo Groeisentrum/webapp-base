@@ -36,7 +36,7 @@ ENV ASPNETCORE_URLS=http://+:5000 \
 EXPOSE 5000
 
 # Start period covers migration on first boot, which can take a while on an empty schema.
-HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=3s --start-period=120s --retries=3 \
     CMD curl --fail --silent http://127.0.0.1:5000/health || exit 1
 
 ENTRYPOINT ["dotnet", "WebAppBase.Api.dll"]
