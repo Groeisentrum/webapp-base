@@ -27,6 +27,17 @@
   --state-warning: #8a6116;
   --state-warning-bg: #fcf3e2;
 
+  /* High-contrast tier, distinct from --state-danger: the Dagbeplanner's closing-time
+     violation banner needs to read as an alarm, not a form validation error. */
+  --state-critical: #dc2626;
+  --state-critical-bg: #fee2e2;
+
+  /* The Dagbeplanner's own action colour — deliberately independent of --brand-primary.
+     A tenant's brand colour (VTM's is a dark maroon) can land visually close to the red
+     reserved above for warnings and destructive actions, so the widget's primary calls
+     to action use this dedicated navy instead of inheriting tenant branding. */
+  --dagbeplanner-primary: #1e3a8a;
+
   --focus-ring: #2d7a63;
 }
 
