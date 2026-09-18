@@ -1,6 +1,7 @@
 using Amazon;
 using Amazon.BedrockAgentCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Options;
 using WebAppBase.Api.Configuration;
 using WebAppBase.Api.Data;
@@ -18,8 +19,11 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         DatabaseOptions databaseOptions)
     {
-        services.AddDbContext<WebAppDbContext>(options =>
-            options.UseMySQL(databaseOptions.ConnectionString));
+        services.AddDbContext<WebAppDbContext>(options => options
+            .UseMySQL(databaseOptions.ConnectionString)
+            // The provider's own history repository cannot take its migration lock on
+            // MariaDB. See MariaDbHistoryRepository for why.
+            .ReplaceService<IHistoryRepository, MariaDbHistoryRepository>());
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
