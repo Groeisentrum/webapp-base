@@ -200,8 +200,19 @@ drops anything that stops being public. It needs **MariaDB 11.7 or later** for t
 `VECTOR` column type; on anything older it logs one error and disables itself rather
 than failing per row. The compose files pin 11.8 for this reason.
 
-**The gateway.** Generate a secret (`openssl rand -hex 32`) and store it in
-`Retrieval/McpApiKey`. Then, in the Bedrock AgentCore console:
+**The gateway.** Generate a secret and store it in `Retrieval/McpApiKey`:
+
+```bash
+aws ssm put-parameter --name /GroeiSentrum/WebappBase/Retrieval/McpApiKey \
+  --value "$(openssl rand -hex 32)" --type SecureString --overwrite
+```
+
+> Store the 64 characters and nothing else. `openssl rand -hex 32 > file` appends a
+> newline, and writing that file's contents verbatim stores 65 characters — the
+> filter compares lengths exactly, so every call is refused and `/mcp` stays shut
+> no matter what the gateway sends. The failure looks identical to a wrong key.
+
+Then, in the Bedrock AgentCore console:
 
 1. Create a **gateway** and add an **MCP target** pointing at
    `https://<host>/mcp`.
