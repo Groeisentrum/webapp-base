@@ -33,6 +33,7 @@ import {
   type ContentInput,
 } from "@/shared/services/contentService";
 import { TranslationsPanel } from "./TranslationsPanel";
+import { RichTextEditor } from "@/shared/components/RichTextEditor";
 
 const ASSET_TYPE_LABELS: Record<AssetType, string> = {
   [AssetType.None]: "Geen",
@@ -158,7 +159,7 @@ export default function ContentPage() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-(--text-primary)">Inhoud</h1>
-        <Button onClick={openCreate} disabled={categories.length === 0}>
+        <Button onClick={openCreate} /* disabled={categories.length === 0} */>
           Nuwe inhoud
         </Button>
       </div>
@@ -174,42 +175,42 @@ export default function ContentPage() {
         ) : (
           // Scrolls within the panel rather than widening the page on a tablet.
           <div className="overflow-x-auto">
-          <table className="w-full min-w-[44rem] text-left text-sm">
-            <thead className="border-b border-(--panel-border) text-(--text-secondary)">
-              <tr>
-                <th className="py-2 pr-4 font-medium">Titel</th>
-                <th className="py-2 pr-4 font-medium">Gepubliseer vanaf</th>
-                <th className="py-2 pr-4 font-medium">Geleentheid</th>
-                <th className="py-2 pr-4 font-medium">Aksies</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.id} className="border-b border-(--panel-border) last:border-0">
-                  <td className="py-2 pr-4 text-(--text-primary)">{item.title}</td>
-                  <td className="py-2 pr-4 text-(--text-secondary)">
-                    {formatDateTime(item.publishedAt)}
-                  </td>
-                  <td className="py-2 pr-4 text-(--text-secondary)">
-                    {formatDateTime(item.eventStart)}
-                  </td>
-                  <td className="py-2 pr-4">
-                    <span className="flex gap-1">
-                      <Button variant="ghost" onClick={() => openEdit(item)}>
-                        Wysig
-                      </Button>
-                      <Button variant="ghost" onClick={() => setTranslationTarget(item)}>
-                        Vertalings
-                      </Button>
-                      <Button variant="ghost" onClick={() => setDeleteTarget(item)}>
-                        Verwyder
-                      </Button>
-                    </span>
-                  </td>
+            <table className="w-full min-w-[44rem] text-left text-sm">
+              <thead className="border-b border-(--panel-border) text-(--text-secondary)">
+                <tr>
+                  <th className="py-2 pr-4 font-medium">Titel</th>
+                  <th className="py-2 pr-4 font-medium">Gepubliseer vanaf</th>
+                  <th className="py-2 pr-4 font-medium">Geleentheid</th>
+                  <th className="py-2 pr-4 font-medium">Aksies</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {items.map((item) => (
+                  <tr key={item.id} className="border-b border-(--panel-border) last:border-0">
+                    <td className="py-2 pr-4 text-(--text-primary)">{item.title}</td>
+                    <td className="py-2 pr-4 text-(--text-secondary)">
+                      {formatDateTime(item.publishedAt)}
+                    </td>
+                    <td className="py-2 pr-4 text-(--text-secondary)">
+                      {formatDateTime(item.eventStart)}
+                    </td>
+                    <td className="py-2 pr-4">
+                      <span className="flex gap-1">
+                        <Button variant="ghost" onClick={() => openEdit(item)}>
+                          Wysig
+                        </Button>
+                        <Button variant="ghost" onClick={() => setTranslationTarget(item)}>
+                          Vertalings
+                        </Button>
+                        <Button variant="ghost" onClick={() => setDeleteTarget(item)}>
+                          Verwyder
+                        </Button>
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </Panel>
@@ -229,8 +230,8 @@ export default function ContentPage() {
           </>
         }
       >
-        <div className="flex flex-col gap-5">
-          <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+          <div className="md:col-span-2 flex flex-col gap-4">
             <Field label="Titel" htmlFor="title">
               <Input
                 id="title"
@@ -262,15 +263,18 @@ export default function ContentPage() {
               />
             </Field>
 
-            <Field label="Teks" htmlFor="body">
-              <Textarea
-                id="body"
-                rows={4}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-(--text-primary)">
+                Hoofteks / Artikelinhoud
+              </label>
+              <RichTextEditor
                 value={form.body ?? ""}
-                onChange={(event) => setForm({ ...form, body: event.target.value || null })}
+                onChange={(html) => setForm({ ...form, body: html || null })}
               />
-            </Field>
+            </div>
 
+          </div>
+          <div className="md:col-span-1 flex flex-col gap-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Mediatipe" htmlFor="assetType">
                 <Select
@@ -295,84 +299,86 @@ export default function ContentPage() {
                     setForm({ ...form, assetReference: event.target.value || null })
                   }
                 />
-              </Field>
-            </div>
-          </div>
-
-          <fieldset className="rounded-md border border-(--panel-border) p-4">
-            <legend className="px-2 text-sm font-medium text-(--text-primary)">
-              Publikasievenster
-            </legend>
-            <p className="mb-3 text-xs text-(--text-secondary)">
-              Bepaal wanneer die inhoud op die werf sigbaar is. Dit is los van die
-              geleentheidsdatums hieronder.
-            </p>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Publiseer vanaf" htmlFor="publishedAt">
-                <Input
-                  id="publishedAt"
-                  type="datetime-local"
-                  value={toDateTimeLocal(form.publishedAt)}
-                  onChange={(event) =>
-                    setForm({ ...form, publishedAt: fromDateTimeLocal(event.target.value) })
-                  }
-                />
-              </Field>
-              <Field label="Publikasie eindig" htmlFor="unpublishedAt">
-                <Input
-                  id="unpublishedAt"
-                  type="datetime-local"
-                  value={toDateTimeLocal(form.unpublishedAt)}
-                  onChange={(event) =>
-                    setForm({ ...form, unpublishedAt: fromDateTimeLocal(event.target.value) })
-                  }
-                />
-              </Field>
-            </div>
-          </fieldset>
-
-          <fieldset className="rounded-md border border-(--panel-border) p-4">
-            <legend className="px-2 text-sm font-medium text-(--text-primary)">Geleentheid</legend>
-            <p className="mb-3 text-xs text-(--text-secondary)">
-              Wanneer die geleentheid self plaasvind. &apos;n Verlede geleentheid bly
-              sigbaar solank die publikasievenster oop is.
-            </p>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Begin" htmlFor="eventStart">
-                <Input
-                  id="eventStart"
-                  type="datetime-local"
-                  value={toDateTimeLocal(form.eventStart)}
-                  onChange={(event) =>
-                    setForm({ ...form, eventStart: fromDateTimeLocal(event.target.value) })
-                  }
-                />
-              </Field>
-              <Field label="Einde" htmlFor="eventEnd">
-                <Input
-                  id="eventEnd"
-                  type="datetime-local"
-                  value={toDateTimeLocal(form.eventEnd)}
-                  onChange={(event) =>
-                    setForm({ ...form, eventEnd: fromDateTimeLocal(event.target.value) })
-                  }
-                />
+                {form.assetType === AssetType.Image && form.assetReference && (
+                  <img src={form.assetReference} alt="Preview" className="max-h-32 rounded object-cover mt-2" />
+                )}
               </Field>
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <Field label="Herhaling" htmlFor="frequency">
-                <Select
-                  id="frequency"
-                  value={recurrence.frequency}
-                  onChange={(event) => {
-                    const frequency = Number(event.target.value) as RecurrenceFrequency;
-                    setForm({
-                      ...form,
-                      recurrence:
-                        frequency === RecurrenceFrequency.None
-                          ? null
-                          : {
+            <fieldset className="rounded-md border border-(--panel-border) p-4">
+              <legend className="px-2 text-sm font-medium text-(--text-primary)">
+                Publikasievenster
+              </legend>
+              <p className="mb-3 text-xs text-(--text-secondary)">
+                Bepaal wanneer die inhoud op die werf sigbaar is. Dit is los van die
+                geleentheidsdatums hieronder.
+              </p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Publiseer vanaf" htmlFor="publishedAt">
+                  <Input
+                    id="publishedAt"
+                    type="datetime-local"
+                    value={toDateTimeLocal(form.publishedAt)}
+                    onChange={(event) =>
+                      setForm({ ...form, publishedAt: fromDateTimeLocal(event.target.value) })
+                    }
+                  />
+                </Field>
+                <Field label="Publikasie eindig" htmlFor="unpublishedAt">
+                  <Input
+                    id="unpublishedAt"
+                    type="datetime-local"
+                    value={toDateTimeLocal(form.unpublishedAt)}
+                    onChange={(event) =>
+                      setForm({ ...form, unpublishedAt: fromDateTimeLocal(event.target.value) })
+                    }
+                  />
+                </Field>
+              </div>
+            </fieldset>
+
+            <fieldset className="rounded-md border border-(--panel-border) p-4">
+              <legend className="px-2 text-sm font-medium text-(--text-primary)">Geleentheid</legend>
+              <p className="mb-3 text-xs text-(--text-secondary)">
+                Wanneer die geleentheid self plaasvind. &apos;n Verlede geleentheid bly
+                sigbaar solank die publikasievenster oop is.
+              </p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Begin" htmlFor="eventStart">
+                  <Input
+                    id="eventStart"
+                    type="datetime-local"
+                    value={toDateTimeLocal(form.eventStart)}
+                    onChange={(event) =>
+                      setForm({ ...form, eventStart: fromDateTimeLocal(event.target.value) })
+                    }
+                  />
+                </Field>
+                <Field label="Einde" htmlFor="eventEnd">
+                  <Input
+                    id="eventEnd"
+                    type="datetime-local"
+                    value={toDateTimeLocal(form.eventEnd)}
+                    onChange={(event) =>
+                      setForm({ ...form, eventEnd: fromDateTimeLocal(event.target.value) })
+                    }
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <Field label="Herhaling" htmlFor="frequency">
+                  <Select
+                    id="frequency"
+                    value={recurrence.frequency}
+                    onChange={(event) => {
+                      const frequency = Number(event.target.value) as RecurrenceFrequency;
+                      setForm({
+                        ...form,
+                        recurrence:
+                          frequency === RecurrenceFrequency.None
+                            ? null
+                            : {
                               frequency,
                               dayOfWeek: recurrence.dayOfWeek ?? 1,
                               weekOfMonth:
@@ -380,74 +386,75 @@ export default function ContentPage() {
                                   ? (recurrence.weekOfMonth ?? WeekOfMonth.First)
                                   : null,
                             },
-                    });
-                  }}
-                >
-                  <option value={RecurrenceFrequency.None}>Geen</option>
-                  <option value={RecurrenceFrequency.Weekly}>Weekliks</option>
-                  <option value={RecurrenceFrequency.Monthly}>Maandeliks</option>
-                </Select>
-              </Field>
-
-              {recurrence.frequency !== RecurrenceFrequency.None && (
-                <Field label="Dag van die week" htmlFor="dayOfWeek">
-                  <Select
-                    id="dayOfWeek"
-                    value={recurrence.dayOfWeek ?? 1}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        recurrence: { ...recurrence, dayOfWeek: Number(event.target.value) },
-                      })
-                    }
+                      });
+                    }}
                   >
-                    {WEEKDAY_LABELS.map((label, index) => (
-                      <option key={label} value={index}>
-                        {label}
-                      </option>
-                    ))}
+                    <option value={RecurrenceFrequency.None}>Geen</option>
+                    <option value={RecurrenceFrequency.Weekly}>Weekliks</option>
+                    <option value={RecurrenceFrequency.Monthly}>Maandeliks</option>
                   </Select>
                 </Field>
-              )}
 
-              {recurrence.frequency === RecurrenceFrequency.Monthly && (
-                <Field label="Week van die maand" htmlFor="weekOfMonth">
-                  <Select
-                    id="weekOfMonth"
-                    value={recurrence.weekOfMonth ?? WeekOfMonth.First}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        recurrence: {
-                          ...recurrence,
-                          weekOfMonth: Number(event.target.value) as WeekOfMonth,
-                        },
-                      })
-                    }
-                  >
-                    {[
-                      WeekOfMonth.First,
-                      WeekOfMonth.Second,
-                      WeekOfMonth.Third,
-                      WeekOfMonth.Fourth,
-                      WeekOfMonth.Last,
-                    ].map((value) => (
-                      <option key={value} value={value}>
-                        {WEEK_OF_MONTH_LABELS[value]}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-              )}
-            </div>
-          </fieldset>
+                {recurrence.frequency !== RecurrenceFrequency.None && (
+                  <Field label="Dag van die week" htmlFor="dayOfWeek">
+                    <Select
+                      id="dayOfWeek"
+                      value={recurrence.dayOfWeek ?? 1}
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          recurrence: { ...recurrence, dayOfWeek: Number(event.target.value) },
+                        })
+                      }
+                    >
+                      {WEEKDAY_LABELS.map((label, index) => (
+                        <option key={label} value={index}>
+                          {label}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                )}
 
-          <VisibilityFields
-            idPrefix="content"
-            visibility={form.visibility}
-            visibleToRoles={form.visibleToRoles}
-            onChange={(next) => setForm({ ...form, ...next })}
-          />
+                {recurrence.frequency === RecurrenceFrequency.Monthly && (
+                  <Field label="Week van die maand" htmlFor="weekOfMonth">
+                    <Select
+                      id="weekOfMonth"
+                      value={recurrence.weekOfMonth ?? WeekOfMonth.First}
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          recurrence: {
+                            ...recurrence,
+                            weekOfMonth: Number(event.target.value) as WeekOfMonth,
+                          },
+                        })
+                      }
+                    >
+                      {[
+                        WeekOfMonth.First,
+                        WeekOfMonth.Second,
+                        WeekOfMonth.Third,
+                        WeekOfMonth.Fourth,
+                        WeekOfMonth.Last,
+                      ].map((value) => (
+                        <option key={value} value={value}>
+                          {WEEK_OF_MONTH_LABELS[value]}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                )}
+              </div>
+            </fieldset>
+
+            <VisibilityFields
+              idPrefix="content"
+              visibility={form.visibility}
+              visibleToRoles={form.visibleToRoles}
+              onChange={(next) => setForm({ ...form, ...next })}
+            />
+          </div>
         </div>
       </Modal>
 
