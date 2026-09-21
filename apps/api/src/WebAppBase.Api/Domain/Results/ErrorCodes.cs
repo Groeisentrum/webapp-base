@@ -33,4 +33,8 @@ public static class ErrorCodes
     public const string VerificationExpired = "verification_expired";
     public const string VerificationCooldown = "verification_cooldown";
     public const string VerificationUnavailable = "verification_unavailable";
+    public const string OomPaulUnavailable = "oompaul_unavailable";
+    public const string OomPaulFailed = "oompaul_failed";
+    public const string OomPaulNoReply = "oompaul_no_reply";
+    public const string RetrievalUnavailable = "retrieval_unavailable";
 }

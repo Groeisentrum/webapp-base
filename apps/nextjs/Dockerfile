@@ -1,5 +1,7 @@
 # Build context is apps/nextjs.
-# Targets linux/arm64 to match the t4g instances this template deploys to.
+# CD builds this for the target instance's architecture (linux/amd64 for the
+# current t3 deployment) on a runner of the same architecture, so no emulation
+# is involved. Nothing here is architecture-specific.
 
 FROM node:20-alpine AS deps
 WORKDIR /app
@@ -12,7 +14,10 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+# public/ is optional in Next.js and this app ships no static assets yet, but the
+# runtime stage copies it unconditionally. Creating it here keeps that COPY valid
+# whether or not the directory is present in the repository.
+RUN mkdir -p public && npm run build
 
 FROM node:20-alpine AS runtime
 WORKDIR /app
@@ -31,6 +36,6 @@ USER node
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=20s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/ || exit 1
+    CMD node -e "require('http').get('http://127.0.0.1:3000/', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))" || exit 1
 
 CMD ["node", "server.js"]

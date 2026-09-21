@@ -1,5 +1,7 @@
 # Build context is apps/api.
-# Targets linux/arm64 to match the t4g instances this template deploys to.
+# CD builds this for the target instance's architecture (linux/amd64 for the
+# current t3 deployment) on a runner of the same architecture, so no emulation
+# is involved. Nothing here is architecture-specific.
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS restore
 WORKDIR /src
@@ -36,7 +38,7 @@ ENV ASPNETCORE_URLS=http://+:5000 \
 EXPOSE 5000
 
 # Start period covers migration on first boot, which can take a while on an empty schema.
-HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=3s --start-period=120s --retries=3 \
     CMD curl --fail --silent http://127.0.0.1:5000/health || exit 1
 
 ENTRYPOINT ["dotnet", "WebAppBase.Api.dll"]

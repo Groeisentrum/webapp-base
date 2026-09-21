@@ -27,7 +27,10 @@
   --state-warning: #8a6116;
   --state-warning-bg: #fcf3e2;
 
-  --focus-ring: #2d7a63;
+  /* Follows the brand: TenantSettings overrides --brand-secondary at runtime, so a
+     client no longer gets a green focus ring on a palette that has no green in it.
+     Identical to the previous literal for the template's own defaults. */
+  --focus-ring: var(--brand-secondary);
 }
 
 @theme inline {
@@ -44,12 +47,24 @@
 body {
   background: var(--page-bg);
   color: var(--text-primary);
-  font-family:
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
+  font-family: var(--font-sans), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* The monument's own site sets prose this open. It reads as unhurried rather than
+     cramped, which suits a visitor standing still and reading a panel. */
+  line-height: 1.7;
+  /* clip rather than hidden: it contains the full-bleed bands below without breaking
+     position: fixed, which the chat panel and the docked menu both rely on. */
+  overflow-x: clip;
+}
+
+/*
+ * Lets a section inside the centred content column span the whole viewport. The
+ * monument's own site announces each section with a full-width band, and that rhythm
+ * is most of what makes it read as a place rather than a list.
+ */
+.full-bleed {
+  width: 100vw;
+  margin-left: 50%;
+  transform: translateX(-50%);
 }
 
 :focus-visible {
