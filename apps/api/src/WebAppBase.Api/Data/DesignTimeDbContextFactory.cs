@@ -19,7 +19,7 @@ public sealed class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<Web
             ?? DesignTimeConnectionString;
 
         var optionsBuilder = new DbContextOptionsBuilder<WebAppDbContext>();
-        optionsBuilder.UseMySQL(connectionString);
+        optionsBuilder.UseMySql(connectionString, new MariaDbServerVersion(new Version(11, 8, 9)));
 
         return new WebAppDbContext(optionsBuilder.Options);
     }
