@@ -33,6 +33,8 @@ import {
   type ContentInput,
 } from "@/shared/services/contentService";
 import { TranslationsPanel } from "./TranslationsPanel";
+import { LocationPanel } from "./LocationPanel";
+import { ASSET_TYPE_LABELS } from "@/shared/lib/assetTypeLabels";
 import { RichTextEditor } from "@/shared/components/RichTextEditor";
 
 const ASSET_TYPE_LABELS: Record<AssetType, string> = {
@@ -78,6 +80,7 @@ export default function ContentPage() {
   const [form, setForm] = useState<ContentInput>(emptyForm);
   const [deleteTarget, setDeleteTarget] = useState<Content | null>(null);
   const [translationTarget, setTranslationTarget] = useState<Content | null>(null);
+  const [locationTarget, setLocationTarget] = useState<Content | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const contentQuery = useQuery({
@@ -175,6 +178,41 @@ export default function ContentPage() {
         ) : (
           // Scrolls within the panel rather than widening the page on a tablet.
           <div className="overflow-x-auto">
+          <table className="w-full min-w-[44rem] text-left text-sm">
+            <thead className="border-b border-(--panel-border) text-(--text-secondary)">
+              <tr>
+                <th className="py-2 pr-4 font-medium">Titel</th>
+                <th className="py-2 pr-4 font-medium">Gepubliseer vanaf</th>
+                <th className="py-2 pr-4 font-medium">Geleentheid</th>
+                <th className="py-2 pr-4 font-medium">Aksies</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.id} className="border-b border-(--panel-border) last:border-0">
+                  <td className="py-2 pr-4 text-(--text-primary)">{item.title}</td>
+                  <td className="py-2 pr-4 text-(--text-secondary)">
+                    {formatDateTime(item.publishedAt)}
+                  </td>
+                  <td className="py-2 pr-4 text-(--text-secondary)">
+                    {formatDateTime(item.eventStart)}
+                  </td>
+                  <td className="py-2 pr-4">
+                    <span className="flex gap-1">
+                      <Button variant="ghost" onClick={() => openEdit(item)}>
+                        Wysig
+                      </Button>
+                      <Button variant="ghost" onClick={() => setTranslationTarget(item)}>
+                        Vertalings
+                      </Button>
+                      <Button variant="ghost" onClick={() => setLocationTarget(item)}>
+                        Ligging
+                      </Button>
+                      <Button variant="ghost" onClick={() => setDeleteTarget(item)}>
+                        Verwyder
+                      </Button>
+                    </span>
+                  </td>
             <table className="w-full min-w-[44rem] text-left text-sm">
               <thead className="border-b border-(--panel-border) text-(--text-secondary)">
                 <tr>
@@ -464,6 +502,14 @@ export default function ContentPage() {
         onClose={() => setTranslationTarget(null)}
       >
         {translationTarget && <TranslationsPanel content={translationTarget} />}
+      </Modal>
+
+      <Modal
+        isOpen={locationTarget !== null}
+        title={`Ligging — ${locationTarget?.title ?? ""}`}
+        onClose={() => setLocationTarget(null)}
+      >
+        {locationTarget && <LocationPanel content={locationTarget} />}
       </Modal>
 
       <ConfirmDialog
