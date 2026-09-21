@@ -1,5 +1,7 @@
 # Build context is apps/api.
-# Targets linux/arm64 to match the t4g instances this template deploys to.
+# CD builds this for the target instance's architecture (linux/amd64 for the
+# current t3 deployment) on a runner of the same architecture, so no emulation
+# is involved. Nothing here is architecture-specific.
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS restore
 WORKDIR /src
