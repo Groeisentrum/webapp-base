@@ -41,7 +41,12 @@ services:
       # Double underscore is the .NET convention for nested configuration keys.
       Configuration__UseParameterStore: "${USE_PARAMETER_STORE:-false}"
       Database__ConnectionString: "server=mariadb;port=3306;database=${DB_NAME:-webapp_base};user=root;password=${DB_ROOT_PASSWORD:-rootpassword}"
-      Database__MigrateOnStartup: "true"
+      # MySql.EntityFrameworkCore's Migrate() acquires a named lock via
+      # "SELECT GET_LOCK(name, -1)". MySQL treats -1 as "wait forever"; MariaDB
+      # doesn't, and returns NULL instead, which the provider casts straight to
+      # Int64 and crashes. Apply migrations out-of-band (see README) and leave
+      # this off until Oracle fixes it or the provider is swapped for MariaDB.
+      Database__MigrateOnStartup: "${DB_MIGRATE_ON_STARTUP:-false}"
       Skaaphond__BaseUrl: ${SKAAPHOND_API_URL:-https://skaaphond.konnek360.co.za}
       Skaaphond__SigningKey: ${SKAAPHOND_SIGNING_KEY:?set SKAAPHOND_SIGNING_KEY in .env}
       Skaaphond__AllowUnverifiedTokens: "${SKAAPHOND_ALLOW_UNVERIFIED:-true}"
