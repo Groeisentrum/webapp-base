@@ -13,15 +13,29 @@ export function LocationPopup({
   location,
   language,
   onEdit,
+  isDetailsVisible = true,
 }: {
   location: PublicLocation;
   /** Omitted here: the linked content page falls back to the site's default language. */
   language?: string;
   onEdit?: (location: PublicLocation) => void;
+  /** Visual-only reveal state; the public API still contains the contract fields. */
+  isDetailsVisible?: boolean;
 }) {
   const detailHref = language
     ? `/inhoud/${location.contentId}?taal=${encodeURIComponent(language)}`
     : `/inhoud/${location.contentId}`;
+
+  if (!isDetailsVisible) {
+    return (
+      <div className="flex max-w-64 flex-col gap-1 text-sm">
+        <span className="font-semibold text-(--text-primary)">Ligging op die kaart</span>
+        <span className="text-(--text-secondary)">
+          Kom nader aan die punt om meer oor hierdie uitstalling te sien.
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex max-w-64 flex-col gap-1 text-sm">
