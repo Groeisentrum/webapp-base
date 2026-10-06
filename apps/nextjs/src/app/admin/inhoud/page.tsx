@@ -34,6 +34,7 @@ import {
 } from "@/shared/services/contentService";
 import { TranslationsPanel } from "./TranslationsPanel";
 import { RichTextEditor } from "@/shared/components/RichTextEditor";
+import { LocationsPanel } from "./LocationsPanel";
 
 const ASSET_TYPE_LABELS: Record<AssetType, string> = {
   [AssetType.None]: "Geen",
@@ -76,6 +77,8 @@ export default function ContentPage() {
   const [editing, setEditing] = useState<Content | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [form, setForm] = useState<ContentInput>(emptyForm);
+  type ModalTab = "content" | "location" | "translation";
+  const [activeTab, setActiveTab] = useState<ModalTab>("content");
   const [deleteTarget, setDeleteTarget] = useState<Content | null>(null);
   const [translationTarget, setTranslationTarget] = useState<Content | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -114,6 +117,7 @@ export default function ContentPage() {
     setForm({ ...emptyForm, categoryId: firstCategoryId });
     setErrorMessage(null);
     setIsFormOpen(true);
+    setActiveTab("content");
   };
 
   const openEdit = (content: Content) => {
@@ -135,6 +139,7 @@ export default function ContentPage() {
     });
     setErrorMessage(null);
     setIsFormOpen(true);
+    setActiveTab("content");
   };
 
   const closeForm = () => {
@@ -199,9 +204,6 @@ export default function ContentPage() {
                         <Button variant="ghost" onClick={() => openEdit(item)}>
                           Wysig
                         </Button>
-                        <Button variant="ghost" onClick={() => setTranslationTarget(item)}>
-                          Vertalings
-                        </Button>
                         <Button variant="ghost" onClick={() => setDeleteTarget(item)}>
                           Verwyder
                         </Button>
@@ -217,19 +219,78 @@ export default function ContentPage() {
 
       <Modal
         isOpen={isFormOpen}
-        title={editing ? "Wysig inhoud" : "Nuwe inhoud"}
+        title={editing ? `Wysig: ${editing.title}` : "Nuwe inhoud"}
         onClose={closeForm}
         footer={
-          <>
+          activeTab === "content" ? (
+            <>
+              <Button variant="secondary" onClick={closeForm}>
+                Kanselleer
+              </Button>
+              <Button onClick={() => saveMutation.mutate(form)} disabled={saveMutation.isPending}>
+                {saveMutation.isPending ? "Stoor tans..." : "Stoor"}
+              </Button>
+            </>
+          ) : (
             <Button variant="secondary" onClick={closeForm}>
-              Kanselleer
+              Maak toe
             </Button>
-            <Button onClick={() => saveMutation.mutate(form)} disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? "Stoor tans..." : "Stoor"}
-            </Button>
-          </>
+          )
         }
       >
+        {/* Navigation Tabs (Only available when editing an existing item with an ID) */}
+        {editing && (
+          <div className="mb-6 flex border-b border-(--panel-border)">
+            <button
+              type="button"
+              onClick={() => setActiveTab("content")}
+              className={`border-b-2 px-4 py-2 text-sm font-medium transition ${activeTab === "content"
+                  ? "border-(--brand-primary) text-(--brand-primary)"
+                  : "border-transparent text-(--text-secondary) hover:text-(--text-primary)"
+                }`}
+            >
+              Inhoud
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("location")}
+              className={`border-b-2 px-4 py-2 text-sm font-medium transition ${activeTab === "location"
+                  ? "border-(--brand-primary) text-(--brand-primary)"
+                  : "border-transparent text-(--text-secondary) hover:text-(--text-primary)"
+                }`}
+            >
+              Ligging & Kaartpen
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("translation")}
+              className={`border-b-2 px-4 py-2 text-sm font-medium transition ${activeTab === "translation"
+                  ? "border-(--brand-primary) text-(--brand-primary)"
+                  : "border-transparent text-(--text-secondary) hover:text-(--text-primary)"
+                }`}
+            >
+              Vertalings
+            </button>
+          </div>
+        )}
+
+        {/* Tab 1: Content Form */}
+        {activeTab === "content" && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+            {/* ... Keep the existing form JSX here ... */}
+          </div>
+        )}
+
+        {/* Tab 2: Location / Map Pins */}
+        {activeTab === "location" && editing && (
+          <LocationsPanel content={editing} />
+        )}
+
+        {/* Tab 3: Translations */}
+        {activeTab === "translation" && editing && (
+          <TranslationsPanel content={editing} />
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
           <div className="md:col-span-2 flex flex-col gap-4">
             <Field label="Titel" htmlFor="title">

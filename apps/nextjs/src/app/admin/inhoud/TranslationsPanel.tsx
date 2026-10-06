@@ -1,30 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Field, Select, Spinner, Textarea } from "@/shared/components/ui";
+import { Alert, Button, Field, Input, Select, Spinner, Textarea } from "@/shared/components/ui";
 import { ENTITY_TYPES, TRANSLATABLE_FIELDS, type Content } from "@/shared/interfaces/Domain";
 import { getSafeUserMessageFromUnknownError } from "@/shared/lib/apiError";
 import { getTenantSettings } from "@/shared/services/adminService";
 import { getTranslations, upsertTranslation } from "@/shared/services/contentService";
+import { RichTextEditor } from "@/shared/components/RichTextEditor";
 
-const FIELD_LABELS: Record<string, string> = {
-  [TRANSLATABLE_FIELDS.title]: "Titel",
-  [TRANSLATABLE_FIELDS.description]: "Beskrywing",
-  [TRANSLATABLE_FIELDS.body]: "Teks",
-};
+interface TranslationsPanelProps {
+  content: Content;
+}
 
-/**
- * Edits one field of one content item in one language at a time.
- *
- * Only languages the deployment has activated are offered — the API rejects the rest,
- * so offering them would only produce errors.
- */
-export function TranslationsPanel({ content }: { content: Content }) {
+export function TranslationsPanel({ content }: TranslationsPanelProps) {
   const queryClient = useQueryClient();
-  const [languageCode, setLanguageCode] = useState<string>("");
-  const [fieldName, setFieldName] = useState<string>(TRANSLATABLE_FIELDS.title);
-  const [value, setValue] = useState("");
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [body, setBody] = useState("");
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(
     null,
   );
@@ -40,10 +34,65 @@ export function TranslationsPanel({ content }: { content: Content }) {
     queryFn: () => getTranslations(ENTITY_TYPES.content, content.id),
   });
 
+  const availableLanguages = (settingsQuery.data?.activeLanguageCodes ?? []).filter(
+    (code) => code !== settingsQuery.data?.defaultLanguageCode,
+  );
+
+  const activeLang = selectedLanguage || availableLanguages[0] || "en";
+
+  // When active language or translations data changes, populate form values
+  useEffect(() => {
+    if (!translationsQuery.data) return;
+    const trans = translationsQuery.data.filter((t) => t.languageCode === activeLang);
+    const tTitle = trans.find((t) => t.fieldName === TRANSLATABLE_FIELDS.title)?.value ?? "";
+    const tDesc = trans.find((t) => t.fieldName === TRANSLATABLE_FIELDS.description)?.value ?? "";
+    const tBody = trans.find((t) => t.fieldName === TRANSLATABLE_FIELDS.body)?.value ?? "";
+
+    setTitle(tTitle);
+    setDescription(tDesc);
+    setBody(tBody);
+  }, [activeLang, translationsQuery.data]);
+
   const saveMutation = useMutation({
-    mutationFn: upsertTranslation,
+    mutationFn: async () => {
+      const promises = [
+        upsertTranslation({
+          entityType: ENTITY_TYPES.content,
+          entityId: content.id,
+          fieldName: TRANSLATABLE_FIELDS.title,
+          languageCode: activeLang,
+          value: title,
+        }),
+      ];
+
+      if (description) {
+        promises.push(
+          upsertTranslation({
+            entityType: ENTITY_TYPES.content,
+            entityId: content.id,
+            fieldName: TRANSLATABLE_FIELDS.description,
+            languageCode: activeLang,
+            value: description,
+          }),
+        );
+      }
+
+      if (body) {
+        promises.push(
+          upsertTranslation({
+            entityType: ENTITY_TYPES.content,
+            entityId: content.id,
+            fieldName: TRANSLATABLE_FIELDS.body,
+            languageCode: activeLang,
+            value: body,
+          }),
+        );
+      }
+
+      await Promise.all(promises);
+    },
     onSuccess: () => {
-      setFeedback({ tone: "success", message: "Vertaling is gestoor." });
+      setFeedback({ tone: "success", message: `Vertalings vir (${activeLang}) is gestoor.` });
       void queryClient.invalidateQueries({
         queryKey: ["translations", ENTITY_TYPES.content, content.id],
       });
@@ -56,102 +105,94 @@ export function TranslationsPanel({ content }: { content: Content }) {
     return <Spinner />;
   }
 
-  const settings = settingsQuery.data;
-  const translations = translationsQuery.data ?? [];
-
-  // Content editors cannot read tenant settings, so the language list may be absent.
-  const availableLanguages = (settings?.activeLanguageCodes ?? []).filter(
-    (code) => code !== settings?.defaultLanguageCode,
-  );
-
   if (availableLanguages.length === 0) {
     return (
       <Alert tone="warning">
-        Geen bykomende tale is vir hierdie werf geaktiveer nie. &apos;n Administrateur kan
-        tale by die werfinstellings byvoeg.
+        Geen bykomende tale is tans vir hierdie webtuiste geaktiveer nie. &apos;n Administrateur kan
+        tale aktiveer onder Werfinstellings (bv. &quot;en&quot; vir Engels).
       </Alert>
     );
   }
 
-  const selectedLanguage = languageCode || availableLanguages[0];
-
-  const handleSave = () => {
-    setFeedback(null);
-    saveMutation.mutate({
-      entityType: ENTITY_TYPES.content,
-      entityId: content.id,
-      fieldName,
-      languageCode: selectedLanguage,
-      value,
-    });
-  };
-
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       {feedback && <Alert tone={feedback.tone}>{feedback.message}</Alert>}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Taal" htmlFor="languageCode">
-          <Select
-            id="languageCode"
-            value={selectedLanguage}
-            onChange={(event) => setLanguageCode(event.target.value)}
-          >
-            {availableLanguages.map((code) => (
-              <option key={code} value={code}>
-                {code}
-              </option>
-            ))}
-          </Select>
-        </Field>
-
-        <Field label="Veld" htmlFor="fieldName">
-          <Select
-            id="fieldName"
-            value={fieldName}
-            onChange={(event) => setFieldName(event.target.value)}
-          >
-            {Object.entries(FIELD_LABELS).map(([field, label]) => (
-              <option key={field} value={field}>
-                {label}
-              </option>
-            ))}
-          </Select>
-        </Field>
+      <div className="flex items-center gap-3">
+        <label htmlFor="targetLanguage" className="text-sm font-medium text-(--text-primary)">
+          Teikentaal vir vertaling:
+        </label>
+        <Select
+          id="targetLanguage"
+          className="w-48"
+          value={activeLang}
+          onChange={(e) => {
+            setSelectedLanguage(e.target.value);
+            setFeedback(null);
+          }}
+        >
+          {availableLanguages.map((code) => (
+            <option key={code} value={code}>
+              {code.toUpperCase()}
+            </option>
+          ))}
+        </Select>
       </div>
 
-      <Field label="Vertaalde waarde" htmlFor="translationValue">
-        <Textarea
-          id="translationValue"
-          rows={4}
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-        />
-      </Field>
+      <div className="flex flex-col gap-4">
+        {/* Title */}
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-(--text-secondary)">
+            Oorspronklike titel: <strong>{content.title}</strong>
+          </span>
+          <Field label={`Vertaalde Titel (${activeLang})`} htmlFor="transTitle">
+            <Input
+              id="transTitle"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Vertaal titel..."
+            />
+          </Field>
+        </div>
 
-      <div>
-        <Button onClick={handleSave} disabled={saveMutation.isPending || value.trim().length === 0}>
-          {saveMutation.isPending ? "Stoor tans..." : "Stoor vertaling"}
-        </Button>
-      </div>
+        {/* Description */}
+        <div className="flex flex-col gap-1">
+          {content.description && (
+            <span className="text-xs text-(--text-secondary)">
+              Oorspronklike beskrywing: <em>{content.description}</em>
+            </span>
+          )}
+          <Field label={`Vertaalde Beskrywing (${activeLang})`} htmlFor="transDesc">
+            <Textarea
+              id="transDesc"
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Vertaal kort beskrywing..."
+            />
+          </Field>
+        </div>
 
-      <div>
-        <h3 className="mb-2 text-sm font-medium text-(--text-primary)">Bestaande vertalings</h3>
-        {translations.length === 0 ? (
-          <p className="text-sm text-(--text-secondary)">Nog geen vertalings nie.</p>
-        ) : (
-          <ul className="flex flex-col gap-1 text-sm">
-            {translations.map((translation) => (
-              <li key={translation.id} className="text-(--text-secondary)">
-                <span className="font-medium text-(--text-primary)">
-                  {translation.languageCode} · {FIELD_LABELS[translation.fieldName] ?? translation.fieldName}
-                </span>
-                {" — "}
-                {translation.value}
-              </li>
-            ))}
-          </ul>
-        )}
+        {/* Body (Rich Text) */}
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-(--text-primary)">
+            Vertaalde Artikelinhoud ({activeLang})
+          </label>
+          <RichTextEditor
+            value={body}
+            onChange={(html) => setBody(html)}
+            placeholder="Tik vertaalde artikelinhoud hier..."
+          />
+        </div>
+
+        <div>
+          <Button
+            onClick={() => saveMutation.mutate()}
+            disabled={saveMutation.isPending || !title.trim()}
+          >
+            {saveMutation.isPending ? "Stoor tans..." : `Stoor ${activeLang.toUpperCase()} Vertalings`}
+          </Button>
+        </div>
       </div>
     </div>
   );
