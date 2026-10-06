@@ -40,7 +40,7 @@ export function LanguageSwitcher({
           const href = buildLanguageHref(pathname, searchParams.toString(), event.target.value);
           startTransition(() => router.push(href));
         }}
-        className="min-h-11 rounded-md border border-(--panel-border) bg-(--panel-bg) px-2 py-1 text-xs font-medium text-(--text-primary)"
+        className="min-h-11 cursor-pointer rounded-md border border-(--panel-border) bg-(--panel-bg) px-3 py-1 text-xs font-semibold tracking-wide text-(--text-primary) uppercase transition hover:border-(--brand-primary) motion-reduce:transition-none"
       >
         {activeLanguageCodes.map((code) => (
           <option key={code} value={code} title={languageName(code)}>

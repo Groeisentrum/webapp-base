@@ -37,6 +37,17 @@ way to break this app.
 | `/api/local/*` | This deployment's API | Bearer token attached | Plain JSON, untouched |
 | `/api/public/*` | This deployment's API | None; GET only | Plain JSON, untouched |
 | `/api/backend/*` | WolkPoort | Bearer token attached | Envelope unwrapped, embedded status lifted |
+| `/api/public/oompaul/chat` | This deployment's API | None; POST only | Plain JSON, or piped SSE |
+
+The chat route is the one exception to "public means GET". It is its own file rather
+than a loosening of the catch-all, so the GET-only contract above still holds for
+everything else. Like the registration proxy it forwards `X-Forwarded-For`: without
+that, every visitor shares the webhost container's address and therefore one
+rate-limit bucket.
+
+`/mcp` is not a proxy at all. It is the only API surface reached from outside without
+going through the webhost, because its caller is Bedrock AgentCore's gateway rather
+than a browser — nginx routes it straight to the API.
 
 WolkPoort answers `200` even when the inner call failed, and double-encodes its
 payload. `/api/backend` unwraps that and lifts the embedded status so callers can
@@ -257,6 +268,52 @@ This is a transactional outbox, and the reason for it is that a crash between
 committing a change and sending its notification would otherwise lose the notification
 silently. A failed send is marked `Failed` and left alone — ecosystem convention is to
 fail fast rather than retry, and a silent retry loop risks duplicate sends.
+
+## Oom Paul and retrieval
+
+Three parts, and the split between them is the whole design.
+
+**The harness** lives in Bedrock AgentCore, not in this repository. It owns the
+persona, the system prompt, the model, the safety rules and the tool configuration. A
+client changes any of those in the AWS console, without a deploy.
+
+**The API carries the conversation.** `POST /api/public/oompaul/chat` sends one turn
+and returns the reply; `/chat/stream` returns the same turn as server-sent events so
+the text appears while it is still being written. Continuity is AgentCore's, keyed by
+a session id the browser holds and echoes back — this API stores no transcript, which
+is also why there is nothing here to retain or erase under POPIA.
+
+Both are anonymous, because visitors arrive without signing in, and both are rate
+limited, because every turn is a billed model call. The endpoint reports **503** when
+the deployment has no harness configured or the `chatbot` feature flag is off: the
+caller did nothing wrong, so a 4xx would send them hunting for a mistake that isn't
+theirs.
+
+**The MCP server gives it facts.** `/mcp` exposes `search_site_content` and
+`get_site_content` as MCP tools over streamable HTTP. The harness calls them when it
+decides it needs to look something up, which keeps retrieval a decision the harness
+makes rather than context this API guesses at and staples to every prompt.
+
+Behind those tools, a background service embeds every published public item through
+Bedrock's Titan embeddings and stores the vectors in MariaDB's native `VECTOR` column
+— no second datastore, no second backup path. It re-embeds only what changed, which it
+detects by hashing the text it last indexed.
+
+### The index is a lookup, never an authority
+
+A vector search answers *what is probably relevant*. It cannot answer *what may this
+caller see*, and it must never be asked to. Every match is resolved through
+`PublicContentService` — the same read path the public site uses — before anything
+reaches the caller, so an item restricted or unpublished since it was indexed simply
+disappears from answers, with no wait for the indexer to catch up.
+
+Dropped matches are dropped in silence: not surfaced, not counted, not explained. A
+search that reported "3 results, 1 hidden" would confirm the hidden one exists, which
+is the same disclosure a 403 would make.
+
+The MCP endpoint authenticates with a shared secret rather than a visitor token,
+because its caller is a machine. An unset secret closes the endpoint rather than
+opening it.
 
 ## Layering in the API
 

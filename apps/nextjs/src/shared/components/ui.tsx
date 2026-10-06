@@ -34,6 +34,30 @@ export const Button = forwardRef<
   );
 });
 
+/**
+ * A link that carries a button's weight. Used where the action leaves the site — a map,
+ * a booking page — so it reads as a thing you do rather than a word you click.
+ *
+ * Shares buttonVariants with Button so the two never drift apart visually.
+ */
+export function LinkButton({
+  className,
+  variant = "primary",
+  ...props
+}: React.AnchorHTMLAttributes<HTMLAnchorElement> & { variant?: ButtonVariant }) {
+  return (
+    <a
+      className={cn(
+        "inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 py-2",
+        "text-sm font-semibold no-underline transition",
+        buttonVariants[variant],
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
 export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
   function Input({ className, ...props }, ref) {
     return (

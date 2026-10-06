@@ -26,7 +26,12 @@ public sealed class WebAppApiFactory : WebApplicationFactory<Program>
 
     static WebAppApiFactory() => ApplyStartupConfiguration();
 
+    /// <summary>The shared secret the MCP endpoint is configured with for these tests.</summary>
+    public const string McpApiKey = "integration-test-mcp-key";
+
     public RecordingPosduifClient PosduifClient { get; } = new();
+
+    public RecordingOomPaulLlmClient OomPaulLlmClient { get; } = new();
 
     public WebAppDbContext CreateDbContext()
     {
@@ -50,6 +55,11 @@ public sealed class WebAppApiFactory : WebApplicationFactory<Program>
 
             services.RemoveAll<IPosduifClient>();
             services.AddSingleton<IPosduifClient>(PosduifClient);
+
+            // Keeps the suite's promise that no AWS call is needed to run it: the
+            // chat endpoint is otherwise the one path that would reach Bedrock.
+            services.RemoveAll<IOomPaulLlmClient>();
+            services.AddSingleton<IOomPaulLlmClient>(OomPaulLlmClient);
         });
     }
 
@@ -70,6 +80,18 @@ public sealed class WebAppApiFactory : WebApplicationFactory<Program>
             "integration-test-signing-key-at-least-32-bytes-long");
         Environment.SetEnvironmentVariable("Skaaphond__AllowUnverifiedTokens", "true");
         Environment.SetEnvironmentVariable("Posduif__Enabled", "false");
+
+        // A harness ARN so the chat endpoint is configured; the client behind it is
+        // replaced above, so nothing in this ARN is ever dialled.
+        Environment.SetEnvironmentVariable(
+            "OomPaul__HarnessArn",
+            "arn:aws:bedrock-agentcore:eu-west-1:000000000000:harness/integration-test");
+
+        // Retrieval stays off — there is no MariaDB here to hold a vector index — but
+        // the MCP endpoint still needs a key, since an unset one closes it entirely
+        // and its authentication is what these tests check.
+        Environment.SetEnvironmentVariable("Retrieval__Enabled", "false");
+        Environment.SetEnvironmentVariable("Retrieval__McpApiKey", McpApiKey);
     }
 
     private static void ReplaceDbContextWithInMemory(IServiceCollection services, string databaseName)

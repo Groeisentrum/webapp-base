@@ -4,6 +4,11 @@ on:
   push:
     branches: [main, dev]
   workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Existing image tag to redeploy (e.g. main-20260918T120000Z-abc1234). Leave blank to build new.'
+        required: false
+        default: ''
 
 concurrency:
   group: cd-${{ github.ref }}
@@ -11,15 +16,21 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   build-and-deploy:
     name: Build, push and deploy
-    runs-on: ubuntu-24.04-arm
+    # x86_64 runner: the target instance is a t3.small, so this builds natively
+    # for it. Building arm64 here would need QEMU and produce images the
+    # instance cannot execute at all.
+    runs-on: ubuntu-24.04
     # Environment gates the deploy: configure required reviewers on `production`
     # in repository settings so a push to main cannot ship unattended.
     environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'af-south-1' }}
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID || '746669232703' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -27,19 +38,33 @@ jobs:
       - name: Resolve target environment
         id: target
         run: |
+          set -euo pipefail
+
           if [ "${{ github.ref_name }}" = "main" ]; then
             echo "suffix=prod" >> "$GITHUB_OUTPUT"
           else
             echo "suffix=dev" >> "$GITHUB_OUTPUT"
           fi
-          echo "tag=${{ github.ref_name }}-$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
-      # OIDC rather than long-lived keys: no AWS secret is stored in the repository.
+          # A redeploy names an existing tag and skips the build entirely, which
+          # is also the rollback path documented in docs/DEPLOYMENT.md.
+          OVERRIDE='${{ inputs.image_tag }}'
+          if [ -n "$OVERRIDE" ]; then
+            echo "tag=$OVERRIDE" >> "$GITHUB_OUTPUT"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.ref_name }}-$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Static keys rather than OIDC: this is the credential every other
+      # Groeisentrum service deploys with, held as organisation secrets.
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: af-south-1
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Log in to ECR
         id: ecr
@@ -48,13 +73,14 @@ jobs:
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Runners are arm64, so these build natively for the t4g targets — no QEMU.
       - name: Build and push API image
+        if: steps.target.outputs.build == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./apps/api
-          platforms: linux/arm64
+          platforms: linux/amd64
           push: true
+          provenance: false
           tags: |
             ${{ steps.ecr.outputs.registry }}/webapp-base-api:${{ steps.target.outputs.suffix }}
             ${{ steps.ecr.outputs.registry }}/webapp-base-api:${{ steps.target.outputs.tag }}
@@ -62,11 +88,13 @@ jobs:
           cache-to: type=gha,scope=api,mode=max
 
       - name: Build and push webhost image
+        if: steps.target.outputs.build == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./apps/nextjs
-          platforms: linux/arm64
+          platforms: linux/amd64
           push: true
+          provenance: false
           tags: |
             ${{ steps.ecr.outputs.registry }}/webapp-base-web:${{ steps.target.outputs.suffix }}
             ${{ steps.ecr.outputs.registry }}/webapp-base-web:${{ steps.target.outputs.tag }}
@@ -74,43 +102,127 @@ jobs:
           cache-to: type=gha,scope=web,mode=max
 
       - name: Build and push nginx image
+        if: steps.target.outputs.build == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./docker/nginx
-          platforms: linux/arm64
+          platforms: linux/amd64
           push: true
+          provenance: false
           tags: |
             ${{ steps.ecr.outputs.registry }}/webapp-base-nginx:${{ steps.target.outputs.suffix }}
             ${{ steps.ecr.outputs.registry }}/webapp-base-nginx:${{ steps.target.outputs.tag }}
           cache-from: type=gha,scope=nginx
           cache-to: type=gha,scope=nginx,mode=max
 
+      - name: Verify redeploy tag exists
+        if: steps.target.outputs.build == 'false'
+        env:
+          TAG: ${{ steps.target.outputs.tag }}
+        run: |
+          set -euo pipefail
+          for repo in webapp-base-api webapp-base-web webapp-base-nginx; do
+            aws ecr describe-images \
+              --repository-name "$repo" \
+              --image-ids imageTag="$TAG" \
+              --region "$AWS_REGION" >/dev/null
+          done
+          echo "All three repositories carry $TAG."
+
       # SSM rather than SSH: no inbound port and no key material to manage.
       - name: Deploy to EC2
         env:
-          INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+          INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID || vars.EC2_INSTANCE_ID }}
           REGISTRY: ${{ steps.ecr.outputs.registry }}
           TAG: ${{ steps.target.outputs.tag }}
         run: |
           set -euo pipefail
 
+          # Built on the runner and shipped as one base64 blob: quoting a script
+          # of this size through --parameters inline is where SSM deploys break.
+          DEPLOY_SCRIPT_B64=$(cat <<'SCRIPT' | base64 -w 0
+          set -euo pipefail
+          cd /opt/webapp-base
+
+          echo "==> Installing this revision's compose file"
+          # Shipped with every deploy rather than copied onto the box by hand, so a
+          # change to the stack ships with the commit that made it. The .env beside
+          # it is instance-owned and deliberately never overwritten: it holds the
+          # database password the MariaDB volume was initialised with.
+          cp -f docker-compose.deploy.yml docker-compose.deploy.yml.bak 2>/dev/null || true
+          printf %s "$compose_b64" | base64 -d > docker-compose.deploy.yml
+          test -s .env || { echo "ERROR: /opt/webapp-base/.env is missing" >&2; exit 1; }
+
+          echo "==> Reclaiming disk before the pull"
+          # Ordered deliberately: the instance is a t3.small with a 20 GB root
+          # volume, so space is freed *before* four images land rather than after
+          # a pull has already failed on ENOSPC.
+          docker image prune -af --filter "until=72h" || true
+          docker builder prune -af || true
+          df -h / | sed 's/^/    /'
+
+          echo "==> ECR login"
+          aws ecr get-login-password --region "$region" \
+            | docker login --username AWS --password-stdin "$registry"
+
+          echo "==> Pulling $tag"
+          export IMAGE_TAG="$tag"
+          docker compose -f docker-compose.deploy.yml pull
+
+          echo "==> Applying stack"
+          # --wait blocks on each container's healthcheck, so a container that
+          # starts and immediately crashes fails the deploy instead of passing it.
+          docker compose -f docker-compose.deploy.yml up -d \
+            --remove-orphans --wait --wait-timeout 300
+
+          echo "==> Post-deploy prune"
+          docker image prune -f || true
+          df -h / | sed 's/^/    /'
+          free -m | sed 's/^/    /'
+
+          docker compose -f docker-compose.deploy.yml ps
+          echo "DEPLOY_SUCCESS"
+          SCRIPT
+          )
+
+          COMPOSE_B64=$(base64 -w 0 < docker-compose.deploy.yml)
+
+          PARAMS_FILE=$(mktemp)
+          REGISTRY="$REGISTRY" TAG="$TAG" REGION="$AWS_REGION" \
+          COMPOSE_B64="$COMPOSE_B64" \
+          DEPLOY_SCRIPT_B64="$DEPLOY_SCRIPT_B64" python3 - <<'PY' > "$PARAMS_FILE"
+          import json, os, shlex, sys
+
+          assignments = {
+              "registry":          os.environ["REGISTRY"],
+              "tag":               os.environ["TAG"],
+              "region":            os.environ["REGION"],
+              "compose_b64":       os.environ["COMPOSE_B64"],
+              "deploy_script_b64": os.environ["DEPLOY_SCRIPT_B64"],
+          }
+          prefix = " ".join(f"{k}={shlex.quote(v)}" for k, v in assignments.items())
+          inner = (
+              "set -euo pipefail; "
+              "tmp=/tmp/webapp-base-deploy.sh; "
+              'printf %s "$deploy_script_b64" | base64 -d > "$tmp"; '
+              'chmod +x "$tmp"; "$tmp"'
+          )
+          json.dump({"commands": [f"{prefix} bash -lc {shlex.quote(inner)}"]}, sys.stdout)
+          PY
+
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy webapp-base $TAG" \
-            --parameters "commands=[
-              'set -euo pipefail',
-              'cd /opt/webapp-base',
-              'aws ecr get-login-password --region af-south-1 | docker login --username AWS --password-stdin $REGISTRY',
-              'export IMAGE_TAG=$TAG',
-              'docker compose -f docker-compose.deploy.yml pull',
-              'docker compose -f docker-compose.deploy.yml up -d --remove-orphans',
-              'docker image prune -f'
-            ]" \
+            --parameters file://"$PARAMS_FILE" \
+            --timeout-seconds 900 \
             --query "Command.CommandId" --output text)
 
+          rm -f "$PARAMS_FILE"
           echo "SSM command: $COMMAND_ID"
-          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" || true
+
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" || true
 
           STATUS=$(aws ssm get-command-invocation \
             --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" \
@@ -130,7 +242,7 @@ jobs:
 
       - name: Verify health
         env:
-          INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+          INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID || vars.EC2_INSTANCE_ID }}
         run: |
           set -euo pipefail
 
@@ -139,15 +251,20 @@ jobs:
             --document-name "AWS-RunShellScript" \
             --comment "Health check webapp-base" \
             --parameters "commands=[
-              'for i in \$(seq 1 18); do if curl -fsS http://127.0.0.1/nginx-health >/dev/null; then echo healthy; exit 0; fi; sleep 5; done; echo unhealthy; exit 1'
+              'for i in \$(seq 1 30); do if curl -fsS http://127.0.0.1/nginx-health >/dev/null && curl -fsSk https://127.0.0.1/health >/dev/null; then echo healthy; exit 0; fi; sleep 5; done; echo unhealthy; docker compose -f /opt/webapp-base/docker-compose.deploy.yml logs --tail=80; exit 1'
             ]" \
             --query "Command.CommandId" --output text)
 
-          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" || true
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" || true
 
           STATUS=$(aws ssm get-command-invocation \
             --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" \
             --query "Status" --output text)
+
+          aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" \
+            --query "StandardOutputContent" --output text
 
           if [ "$STATUS" != "Success" ]; then
             echo "Health check failed after deployment" >&2

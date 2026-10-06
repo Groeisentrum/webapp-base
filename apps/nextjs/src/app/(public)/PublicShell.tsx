@@ -1,11 +1,23 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { MenuType } from "@/shared/interfaces/Domain";
-import type { CategoryTreeNode, MenuItem, PublicSiteConfig } from "@/shared/interfaces/Domain";
-import { getPublicCategories, getPublicMenuItems } from "@/shared/services/publicService";
-import { buildCategorySlugs, buildMenuHref, buildMenuTree } from "@/shared/lib/menuTree";
+import { FEATURE_FLAGS, MenuType } from "@/shared/interfaces/Domain";
+import type {
+  CategoryTreeNode,
+  MenuItem,
+  PublicSiteConfig,
+} from "@/shared/interfaces/Domain";
+import {
+  getPublicCategories,
+  getPublicMenuItems,
+} from "@/shared/services/publicService";
+import {
+  buildCategorySlugs,
+  buildMenuHref,
+  buildMenuTree,
+} from "@/shared/lib/menuTree";
 import { LanguageSwitcher } from "@/app/(public)/LanguageSwitcher";
 import { BottomHoverMenu } from "@/app/(public)/BottomHoverMenu";
+import { OomPaulWidget } from "@/app/(public)/OomPaulWidget";
 import { SessionMenu } from "@/app/(public)/SessionMenu";
 import { SocialLinks } from "@/app/(public)/SocialLinks";
 
@@ -33,7 +45,8 @@ export async function PublicShell({
   hero?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const { categories, topMenu, bottomMenu, footerMenu } = await loadNavigation(language);
+  const { categories, topMenu, bottomMenu, footerMenu } =
+    await loadNavigation(language);
 
   const brandingStyle = buildBrandingStyle(siteConfig);
   const categorySlugs = buildCategorySlugs(categories);
@@ -49,7 +62,7 @@ export async function PublicShell({
             {siteConfig.siteName}
           </Link>
 
-          <div className="flex items-center gap-1">
+          <div className="flex min-w-0 items-center gap-1">
             <nav aria-label="Sekondêre kieslys" className="flex items-center">
               {buildMenuTree(topMenu).map((item) => {
                 const href = buildMenuHref(item, categorySlugs, language);
@@ -59,7 +72,7 @@ export async function PublicShell({
                   <Link
                     key={item.id}
                     href={href}
-                    className="inline-flex min-h-11 items-center px-2.5 text-sm text-(--text-secondary) hover:text-(--text-primary)"
+                    className="inline-flex min-h-11 items-center px-2.5 text-sm whitespace-nowrap text-(--text-secondary) hover:text-(--text-primary)"
                   >
                     {item.label}
                   </Link>
@@ -77,22 +90,33 @@ export async function PublicShell({
               />
             </Suspense>
 
-            <SocialLinks contactInfo={siteConfig.contactInfo} />
+            {/* Secondary on a phone, where the row is already carrying the site name,
+                two menu links, the session menu and the language switcher — and where
+                they were being pushed off the edge. They live in the footer as well. */}
+            <div className="hidden sm:flex">
+              <SocialLinks contactInfo={siteConfig.contactInfo} />
+            </div>
           </div>
         </div>
       </header>
 
       {hero}
 
-      <BottomHoverMenu items={bottomMenu} categories={categories} language={language} />
+      <BottomHoverMenu
+        items={bottomMenu}
+        categories={categories}
+        language={language}
+      />
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">{children}</main>
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
+        {children}
+      </main>
 
-      <footer className="border-t border-(--panel-border) bg-(--panel-bg)">
-        <div className="mx-auto max-w-5xl px-4 py-6 text-sm text-(--text-secondary)">
+      <footer className="mt-auto bg-(--brand-primary) text-(--text-inverse)">
+        <div className="mx-auto max-w-5xl px-4 py-8 text-sm text-(--text-inverse)/80">
           {footerMenu.length > 0 && (
             <nav aria-label="Werfkaart" className="mb-6">
-              <h2 className="mb-2 text-xs font-semibold tracking-wide text-(--text-primary) uppercase">
+              <h2 className="mb-3 text-xs font-semibold tracking-[0.12em] text-(--text-inverse) uppercase">
                 Werfkaart
               </h2>
 
@@ -105,12 +129,14 @@ export async function PublicShell({
                       {href ? (
                         <Link
                           href={href}
-                          className="inline-flex min-h-11 items-center hover:text-(--text-primary)"
+                          className="inline-flex min-h-11 items-center hover:text-(--text-inverse) hover:underline hover:underline-offset-4"
                         >
                           {item.label}
                         </Link>
                       ) : (
-                        <span className="inline-flex min-h-11 items-center">{item.label}</span>
+                        <span className="inline-flex min-h-11 items-center">
+                          {item.label}
+                        </span>
                       )}
                     </li>
                   );
@@ -119,11 +145,15 @@ export async function PublicShell({
             </nav>
           )}
 
+          <div className="mb-4 flex sm:hidden">
+            <SocialLinks contactInfo={siteConfig.contactInfo} tone="inverse" />
+          </div>
+
           {siteConfig.contactInfo.emailAddress && (
             <p className="break-words">
               <a
                 href={`mailto:${siteConfig.contactInfo.emailAddress}`}
-                className="inline-flex min-h-11 items-center underline"
+                className="inline-flex min-h-11 items-center hover:text-(--text-inverse) hover:underline hover:underline-offset-4"
               >
                 {siteConfig.contactInfo.emailAddress}
               </a>
@@ -134,24 +164,34 @@ export async function PublicShell({
             <p>
               <a
                 href={`tel:${siteConfig.contactInfo.phoneNumber.replace(/\s+/g, "")}`}
-                className="inline-flex min-h-11 items-center underline"
+                className="inline-flex min-h-11 items-center hover:text-(--text-inverse) hover:underline hover:underline-offset-4"
               >
                 {siteConfig.contactInfo.phoneNumber}
               </a>
             </p>
           )}
 
-          {/* Stacked on a phone: two underlined links on one line are easy to mis-tap. */}
-          <nav className="mt-2 flex flex-col gap-1 sm:flex-row sm:gap-4">
-            <Link href="/privaatheid" className="inline-flex min-h-11 items-center underline">
+          {/* Stacked on a phone: two links on one line are easy to mis-tap. */}
+          <nav className="mt-4 flex flex-col gap-1 border-t border-(--text-inverse)/20 pt-4 sm:flex-row sm:gap-6">
+            <Link
+              href="/privaatheid"
+              className="inline-flex min-h-11 items-center hover:text-(--text-inverse) hover:underline hover:underline-offset-4"
+            >
               Privaatheidsbeleid
             </Link>
-            <Link href="/bepalings" className="inline-flex min-h-11 items-center underline">
+            <Link
+              href="/bepalings"
+              className="inline-flex min-h-11 items-center hover:text-(--text-inverse) hover:underline hover:underline-offset-4"
+            >
               Bepalings en voorwaardes
             </Link>
           </nav>
         </div>
       </footer>
+
+      {/* The chatbot flag gated the API but not the UI, so a deployment with the chat
+          switched off still showed a launcher that answered 503 when tapped. */}
+      {siteConfig.featureFlags[FEATURE_FLAGS.chatbot] && <OomPaulWidget />}
     </div>
   );
 }
@@ -188,7 +228,8 @@ function buildBrandingStyle(siteConfig: PublicSiteConfig): React.CSSProperties {
   const branding = siteConfig.branding;
 
   if (branding.primaryColour) style["--brand-primary"] = branding.primaryColour;
-  if (branding.secondaryColour) style["--brand-secondary"] = branding.secondaryColour;
+  if (branding.secondaryColour)
+    style["--brand-secondary"] = branding.secondaryColour;
   if (branding.accentColour) style["--brand-accent"] = branding.accentColour;
 
   return style as React.CSSProperties;

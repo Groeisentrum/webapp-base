@@ -10,10 +10,13 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Runners match the deployment architecture (x86_64). Next.js and .NET both pull
+# native, per-architecture binaries — swc and lightningcss among them — so testing
+# on one architecture and shipping another hides exactly the failures CI is for.
 jobs:
   api:
     name: API — build and test
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -49,7 +52,7 @@ jobs:
 
   web:
     name: Webhost — lint, test and build
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
