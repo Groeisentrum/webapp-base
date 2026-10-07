@@ -33,3 +33,18 @@ export function formatDateTime(isoValue: string | null): string {
 
   return date.toLocaleString("af-ZA");
 }
+
+export function formatDisplayDateTime(isoValue: string | null): string {
+  if (!isoValue) return "—";
+
+  const date = new Date(isoValue);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return date.toLocaleString("af-ZA", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
