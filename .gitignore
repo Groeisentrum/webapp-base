@@ -30,6 +30,8 @@ Thumbs.db
 # TypeScript incremental build cache
 *.tsbuildinfo
 
+# Local scope/reference notes (not part of the template)
+SCOPE.md
 # Coding-agent tool artifacts
 .serena/
 .playwright-mcp/
