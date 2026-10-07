@@ -33,20 +33,10 @@ import {
   updateContent,
   type ContentInput,
 } from "@/shared/services/contentService";
-import { LocationsPanel } from "./LocationsPanel";
-import { TranslationsPanel } from "./TranslationsPanel";
 import { LocationPanel } from "./LocationPanel";
+import { TranslationsPanel } from "./TranslationsPanel";
 import { ASSET_TYPE_LABELS } from "@/shared/lib/assetTypeLabels";
 import { RichTextEditor } from "@/shared/components/RichTextEditor";
-
-const ASSET_TYPE_LABELS: Record<AssetType, string> = {
-  [AssetType.None]: "Geen",
-  [AssetType.YouTube]: "YouTube",
-  [AssetType.S3]: "S3",
-  [AssetType.SelfHosted]: "Self gehuisves",
-  [AssetType.ExternalLink]: "Eksterne skakel",
-  [AssetType.Image]: "Beeld",
-};
 
 const WEEKDAY_LABELS = [
   "Sondag",
@@ -142,8 +132,7 @@ function StatusBadge({ item }: { item: Content }) {
       </span>
       {item.visibility !== Visibility.Public && (
         <span
-          className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:border-amber-800 dark:bg-amber-950/40
-  dark:text-amber-400"
+          className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400"
           title={
             item.visibility === Visibility.Restricted
               ? "Beperk tot spesifieke rolle"
@@ -165,8 +154,6 @@ export default function ContentPage() {
   type ModalTab = "content" | "location" | "translation";
   const [activeTab, setActiveTab] = useState<ModalTab>("content");
   const [deleteTarget, setDeleteTarget] = useState<Content | null>(null);
-  const [translationTarget, setTranslationTarget] = useState<Content | null>(null);
-  const [locationTarget, setLocationTarget] = useState<Content | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Filter & Search states
@@ -239,8 +226,8 @@ export default function ContentPage() {
     setForm(emptyForm);
   };
 
-  const items = contentQuery.data?.items ?? [];
-  const categories = categoriesQuery.data ?? [];
+  const items = useMemo(() => contentQuery.data?.items ?? [], [contentQuery.data?.items]);
+  const categories = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
 
   // Category ID to category lookup map
   const categoryMap = useMemo(() => {
@@ -423,42 +410,6 @@ export default function ContentPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[50rem] text-left text-sm">
-          <table className="w-full min-w-[44rem] text-left text-sm">
-            <thead className="border-b border-(--panel-border) text-(--text-secondary)">
-              <tr>
-                <th className="py-2 pr-4 font-medium">Titel</th>
-                <th className="py-2 pr-4 font-medium">Gepubliseer vanaf</th>
-                <th className="py-2 pr-4 font-medium">Geleentheid</th>
-                <th className="py-2 pr-4 font-medium">Aksies</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.id} className="border-b border-(--panel-border) last:border-0">
-                  <td className="py-2 pr-4 text-(--text-primary)">{item.title}</td>
-                  <td className="py-2 pr-4 text-(--text-secondary)">
-                    {formatDateTime(item.publishedAt)}
-                  </td>
-                  <td className="py-2 pr-4 text-(--text-secondary)">
-                    {formatDateTime(item.eventStart)}
-                  </td>
-                  <td className="py-2 pr-4">
-                    <span className="flex gap-1">
-                      <Button variant="ghost" onClick={() => openEdit(item)}>
-                        Wysig
-                      </Button>
-                      <Button variant="ghost" onClick={() => setTranslationTarget(item)}>
-                        Vertalings
-                      </Button>
-                      <Button variant="ghost" onClick={() => setLocationTarget(item)}>
-                        Ligging
-                      </Button>
-                      <Button variant="ghost" onClick={() => setDeleteTarget(item)}>
-                        Verwyder
-                      </Button>
-                    </span>
-                  </td>
             <table className="w-full min-w-[44rem] text-left text-sm">
               <thead className="border-b border-(--panel-border) text-(--text-secondary)">
                 <tr>
@@ -509,6 +460,9 @@ export default function ContentPage() {
                         <span className="flex gap-1">
                           <Button variant="ghost" onClick={() => openEdit(item, "content")}>
                             Wysig
+                          </Button>
+                          <Button variant="ghost" onClick={() => openEdit(item, "location")}>
+                            Ligging
                           </Button>
                           <Button variant="ghost" onClick={() => openEdit(item, "translation")}>
                             Vertalings
@@ -587,7 +541,7 @@ export default function ContentPage() {
 
         {/* Tab 2: Location / Map Pins */}
         {activeTab === "location" && editing && (
-          <LocationsPanel content={editing} />
+          <LocationPanel content={editing} />
         )}
 
         {/* Tab 3: Translations */}
@@ -824,14 +778,6 @@ export default function ContentPage() {
             </div>
           </div>
         )}
-      </Modal>
-
-      <Modal
-        isOpen={locationTarget !== null}
-        title={`Ligging — ${locationTarget?.title ?? ""}`}
-        onClose={() => setLocationTarget(null)}
-      >
-        {locationTarget && <LocationPanel content={locationTarget} />}
       </Modal>
 
       <ConfirmDialog
