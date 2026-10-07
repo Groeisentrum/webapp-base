@@ -24,7 +24,7 @@ import {
 } from "@/shared/interfaces/Domain";
 import { VisibilityFields } from "@/shared/components/VisibilityFields";
 import { getSafeUserMessageFromUnknownError } from "@/shared/lib/apiError";
-import { formatDateTime, fromDateTimeLocal, toDateTimeLocal } from "@/shared/lib/dateFields";
+import { formatDisplayDateTime, fromDateTimeLocal, toDateTimeLocal } from "@/shared/lib/dateFields";
 import { getCategories } from "@/shared/services/adminService";
 import {
   createContent,
@@ -451,10 +451,10 @@ export default function ContentPage() {
                         <StatusBadge item={item} />
                       </td>
                       <td className="py-2.5 pr-4 text-(--text-secondary)">
-                        {formatDateTime(item.publishedAt)}
+                        {formatDisplayDateTime(item.publishedAt)}
                       </td>
                       <td className="py-2.5 pr-4 text-(--text-secondary)">
-                        {formatDateTime(item.eventStart)}
+                        {formatDisplayDateTime(item.eventStart)}
                       </td>
                       <td className="py-2.5 pr-4">
                         <span className="flex gap-1">
