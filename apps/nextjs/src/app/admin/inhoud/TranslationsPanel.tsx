@@ -6,7 +6,7 @@ import { Alert, Button, Field, Input, Select, Spinner, Textarea } from "@/shared
 import { ENTITY_TYPES, TRANSLATABLE_FIELDS, type Content } from "@/shared/interfaces/Domain";
 import { getSafeUserMessageFromUnknownError } from "@/shared/lib/apiError";
 import { getTenantSettings } from "@/shared/services/adminService";
-import { getTranslations, upsertTranslation } from "@/shared/services/contentService";
+import { deleteTranslation, getTranslations, upsertTranslation } from "@/shared/services/contentService";
 import { RichTextEditor } from "@/shared/components/RichTextEditor";
 
 interface TranslationsPanelProps {
@@ -19,6 +19,8 @@ interface TranslationFormProps {
   initialTitle: string;
   initialDescription: string;
   initialBody: string;
+  existingDescId?: number;
+  existingBodyId?: number;
   onSuccess: () => void;
   onError: (error: unknown) => void;
 }
@@ -29,6 +31,8 @@ function TranslationForm({
   initialTitle,
   initialDescription,
   initialBody,
+  existingDescId,
+  existingBodyId,
   onSuccess,
   onError,
 }: TranslationFormProps) {
@@ -38,29 +42,40 @@ function TranslationForm({
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const promises = [
+      const promises: Promise<unknown>[] = [
+        // Titel is verpligtend vir die vertaling
         upsertTranslation({
           entityType: ENTITY_TYPES.content,
           entityId: content.id,
           fieldName: TRANSLATABLE_FIELDS.title,
           languageCode: activeLang,
-          value: title,
+          value: title.trim(),
         }),
       ];
 
-      if (description) {
+      // Hanteer Beskrywing:
+      if (isBlank(description)) {
+        if (existingDescId) {
+          promises.push(deleteTranslation(existingDescId));
+        }
+      } else {
         promises.push(
           upsertTranslation({
             entityType: ENTITY_TYPES.content,
             entityId: content.id,
             fieldName: TRANSLATABLE_FIELDS.description,
             languageCode: activeLang,
-            value: description,
+            value: description.trim(),
           }),
         );
       }
 
-      if (body) {
+      // Hanteer Hoofteks / Artikelinhoud:
+      if (isBlank(body)) {
+        if (existingBodyId) {
+          promises.push(deleteTranslation(existingBodyId));
+        }
+      } else {
         promises.push(
           upsertTranslation({
             entityType: ENTITY_TYPES.content,
@@ -137,6 +152,15 @@ function TranslationForm({
   );
 }
 
+function isBlank(value: string | null | undefined): boolean {
+  if (!value) return true;
+  const stripped = value
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .trim();
+  return stripped.length === 0;
+}
+
 export function TranslationsPanel({ content }: TranslationsPanelProps) {
   const queryClient = useQueryClient();
   const [selectedLanguage, setSelectedLanguage] = useState<string>("");
@@ -165,6 +189,14 @@ export function TranslationsPanel({ content }: TranslationsPanelProps) {
     return <Spinner />;
   }
 
+  if (settingsQuery.isError || translationsQuery.isError) {
+    return (
+      <Alert tone="danger">
+        Kon nie die vertalings of taalinstellings laai nie. Verfris asseblief die bladsy.
+      </Alert>
+    );
+  }
+
   if (availableLanguages.length === 0) {
     return (
       <Alert tone="warning">
@@ -175,10 +207,9 @@ export function TranslationsPanel({ content }: TranslationsPanelProps) {
   }
 
   const trans = (translationsQuery.data ?? []).filter((t) => t.languageCode === activeLang);
-  const initialTitle = trans.find((t) => t.fieldName === TRANSLATABLE_FIELDS.title)?.value ?? "";
-  const initialDescription =
-    trans.find((t) => t.fieldName === TRANSLATABLE_FIELDS.description)?.value ?? "";
-  const initialBody = trans.find((t) => t.fieldName === TRANSLATABLE_FIELDS.body)?.value ?? "";
+  const titleTrans = trans.find((t) => t.fieldName === TRANSLATABLE_FIELDS.title);
+  const descTrans = trans.find((t) => t.fieldName === TRANSLATABLE_FIELDS.description);
+  const bodyTrans = trans.find((t) => t.fieldName === TRANSLATABLE_FIELDS.body);
 
   return (
     <div className="flex flex-col gap-5">
@@ -209,9 +240,11 @@ export function TranslationsPanel({ content }: TranslationsPanelProps) {
         key={`${content.id}-${activeLang}-${translationsQuery.dataUpdatedAt}`}
         content={content}
         activeLang={activeLang}
-        initialTitle={initialTitle}
-        initialDescription={initialDescription}
-        initialBody={initialBody}
+        initialTitle={titleTrans?.value ?? ""}
+        initialDescription={descTrans?.value ?? ""}
+        initialBody={bodyTrans?.value ?? ""}
+        existingDescId={descTrans?.id}
+        existingBodyId={bodyTrans?.id}
         onSuccess={() => {
           setFeedback({ tone: "success", message: `Vertalings vir (${activeLang}) is gestoor.` });
           void queryClient.invalidateQueries({
